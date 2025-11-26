@@ -8,6 +8,8 @@ const bcrypt = require("bcryptjs");
 
 const storage = require("./storage");
 
+const WEB_DIR = path.join(__dirname, "..", "web");
+
 const app = express();
 const PORT = process.env.WEB_PORT || process.env.PORT || 3000;
 
@@ -101,17 +103,19 @@ function getVisibleBoardIdsForRequest(req) {
 // ================== routes for pages ==================
 
 app.get("/admin.html", adminAuth, (req, res) => {
-  res.sendFile(path.join(__dirname, "public", "admin.html"));
+  res.sendFile(path.join(WEB_DIR, "admin.html"));
 });
+
 app.get("/admin", adminAuth, (req, res) => {
   res.redirect("/admin.html");
 });
 
 app.get("/invite/:token", (req, res) => {
-  res.sendFile(path.join(__dirname, "public", "invite.html"));
+  res.sendFile(path.join(WEB_DIR, "invite.html"));
 });
 
-app.use(express.static(path.join(__dirname, "public")));
+// статика (index.html, styles.css, иконки и т.п.)
+app.use(express.static(WEB_DIR));
 
 // ================== moods API ==================
 
