@@ -1,0 +1,17 @@
+version: "3.9"
+
+services:
+  moodgraph:
+    build: .
+    container_name: moodgraph
+    restart: unless-stopped
+    ports:
+      - "${WEB_PORT:-3000}:${WEB_PORT:-3000}"
+    environment:
+      WEB_PORT: "${WEB_PORT:-3000}"
+      TG_TOKEN: "${TG_TOKEN}"
+      DOMAIN: "${DOMAIN}"
+      LOCALE: "${LOCALE:-ru}"
+      DATA_DIR: "/data"
+    volumes:
+      - ./data:/data

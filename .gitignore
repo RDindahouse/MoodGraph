@@ -1,0 +1,30 @@
+# --- Node.js ---
+node_modules/
+npm-debug.log
+
+# --- SQLite database ---
+data/
+*.sqlite
+*.db
+
+# --- Environment variables ---
+.env
+
+# --- Docker runtime data ---
+docker-data/
+docker-volume/
+
+# --- Editor junk ---
+.DS_Store
+Thumbs.db
+
+# --- Logs ---
+logs/
+*.log
+
+# --- Temporary ---
+tmp/
+.cache/
+
+# --- Avoid uploading entire local Docker context ---
+!.dockerignore

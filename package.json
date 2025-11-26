@@ -1,0 +1,22 @@
+{
+  "name": "moodgraph",
+  "version": "1.0.0",
+  "description": "MoodGraph: mood tracking with Telegram bot and web UI",
+  "main": "server.js",
+  "scripts": {
+    "start-server": "node server.js",
+    "start-bot": "node bot.js",
+    "start-all": "concurrently \"node server.js\" \"node bot.js\""
+  },
+  "dependencies": {
+    "basic-auth": "^2.0.1",
+    "bcryptjs": "^2.4.3",
+    "body-parser": "^1.20.3",
+    "concurrently": "^9.2.1",
+    "date-fns": "^2.30.0",
+    "express": "^4.21.2",
+    "node-fetch": "^2.6.13",
+    "node-telegram-bot-api": "^0.66.0",
+    "better-sqlite3": "^12.4.6"
+  }
+}

@@ -1,0 +1,659 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <title>Mood Graph</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <link rel="stylesheet" href="/styles.css" />
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns"></script>
+</head>
+
+<body>
+  <div class="container">
+    <div class="top-bar-right">
+      <div class="filter">
+        <span>Период:</span>
+        <select id="range-select">
+          <option value="1">Последний день</option>
+          <option value="7">Последние 7 дней</option>
+          <option value="30">Последние 30 дней</option>
+          <option value="90">Последние 90 дней</option>
+          <option value="365">Последний год</option>
+          <option value="all">Всё время</option>
+        </select>
+      </div>
+
+    <div class="boards-filter" id="boards-filter"></div>
+
+    <div class="auth-box" id="auth-box">
+      <form id="auth-form">
+        <input
+          id="auth-username"
+          type="text"
+          placeholder="логин"
+          autocomplete="username"
+        />
+        <input
+          id="auth-password"
+          type="password"
+          placeholder="пароль"
+          autocomplete="current-password"
+        />
+        <button type="button" id="auth-login-btn">Войти</button>
+      </form>
+      <div id="auth-user" class="auth-user"></div>
+      <div id="auth-error" class="auth-error"></div>
+    </div>
+
+    <button id="theme-toggle" class="theme-toggle" type="button">
+      <img id="theme-icon" src="/icons/sun-light.svg" width="20" height="20" />
+    </button>
+  </div>
+
+
+    <div class="chart-block">
+      <div class="chart-scroll">
+        <div class="chart-inner">
+          <canvas id="chart"></canvas>
+        </div>
+      </div>
+    </div>
+
+    <div class="entries">
+      <h2 id="day-title">Кликните на точку графика</h2>
+      <div id="day-entries"></div>
+    </div>
+  </div>
+
+    <script>
+    let chart;
+    let rawData = [];
+
+    let availableBoards = [];
+    let selectedBoardIds = [];
+    let currentRange = "7";
+
+
+    const DAY_MS = 24 * 60 * 60 * 1000;
+    const COLORS = ["#60a5fa", "#f97316", "#22c55e", "#ec4899", "#a855f7", "#eab308"];
+    
+        let currentUser = null;
+
+    async function loadCurrentUser() {
+      try {
+        const res = await fetch("/api/me");
+        const data = await res.json();
+        currentUser = data.user;
+      } catch (e) {
+        currentUser = null;
+      }
+      updateAuthUI();
+    }
+
+    function updateAuthUI() {
+      const form = document.getElementById("auth-form");
+      const userBox = document.getElementById("auth-user");
+      const errorBox = document.getElementById("auth-error");
+
+      if (!form || !userBox || !errorBox) return;
+
+      errorBox.textContent = "";
+
+      if (currentUser) {
+        form.style.display = "none";
+        userBox.style.display = "block";
+        userBox.innerHTML =
+          'Вошёл как <b>' +
+          currentUser.username +
+          '</b><button type="button" id="auth-logout-btn">Выйти</button>';
+
+        const logoutBtn = document.getElementById("auth-logout-btn");
+        if (logoutBtn) {
+          logoutBtn.onclick = async () => {
+            try {
+              await fetch("/api/logout", { method: "POST" });
+            } catch (e) {}
+            window.location.reload();
+          };
+        }
+      } else {
+        form.style.display = "flex";
+        userBox.style.display = "none";
+      }
+    }
+
+    async function handleLogin() {
+      const usernameEl = document.getElementById("auth-username");
+      const passwordEl = document.getElementById("auth-password");
+      const errorBox = document.getElementById("auth-error");
+
+      const username = usernameEl.value.trim();
+      const password = passwordEl.value;
+
+      errorBox.textContent = "";
+
+      if (!username || !password) {
+        errorBox.textContent = "Введите логин и пароль.";
+        return;
+      }
+
+      try {
+        const res = await fetch("/api/login", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ username, password }),
+        });
+        if (!res.ok) {
+          let msg = "Неверный логин или пароль.";
+          try {
+            const j = await res.json();
+            if (j.error) msg = j.error;
+          } catch {}
+          errorBox.textContent = msg;
+          return;
+        }
+        window.location.reload();
+      } catch (e) {
+        errorBox.textContent = "Ошибка: " + e.message;
+      }
+    }
+
+
+    function applyTheme(theme) {
+      document.body.dataset.theme = theme;
+
+      const icon = document.getElementById("theme-icon");
+      if (!icon) return;
+
+      if (theme === "dark") {
+        icon.src = "/icons/light_theme.svg";
+      } else {
+        icon.src = "/icons/dark_theme.svg";
+      }
+    }
+
+    function initTheme() {
+      const saved = localStorage.getItem("theme");
+      const theme = saved === "light" || saved === "dark" ? saved : "dark";
+      applyTheme(theme);
+
+      const btn = document.getElementById("theme-toggle");
+      if (btn) {
+        btn.addEventListener("click", () => {
+          const current =
+            document.body.dataset.theme === "light" ? "light" : "dark";
+          const next = current === "light" ? "dark" : "light";
+          localStorage.setItem("theme", next);
+          applyTheme(next);
+        });
+      }
+    }
+
+
+    function formatFullDateTime(iso) {
+      const d = new Date(iso);
+      const hh = String(d.getHours()).padStart(2, "0");
+      const mm = String(d.getMinutes()).padStart(2, "0");
+      const DD = String(d.getDate()).padStart(2, "0");
+      const MM = String(d.getMonth() + 1).padStart(2, "0");
+      const YYYY = d.getFullYear();
+      return `${hh}:${mm} ${DD}.${MM}.${YYYY}`;
+    }
+
+    function formatShortDate(value) {
+      const d = new Date(value);
+      const DD = String(d.getDate()).padStart(2, "0");
+      const MM = String(d.getMonth() + 1).padStart(2, "0");
+      return `${DD}.${MM}`;
+    }
+
+    function dateKey(iso) {
+      return iso.slice(0, 10); // YYYY-MM-DD
+    }
+
+    function buildBoardsQueryParam() {
+      if (!selectedBoardIds || !selectedBoardIds.length) return "";
+      return "?boards=" + encodeURIComponent(selectedBoardIds.join(","));
+    }
+
+    async function loadData() {
+      const q = buildBoardsQueryParam();
+      const res = await fetch("/api/moods" + q);
+      return res.json();
+    }
+
+    async function loadDay(date) {
+      const q = buildBoardsQueryParam();
+      const res = await fetch("/api/moods/day/" + date + q);
+      return res.json();
+    }
+
+
+    function renderDayEntries(date, entries) {
+      const box = document.getElementById("day-entries");
+      const title = document.getElementById("day-title");
+
+      const d = new Date(date + "T00:00:00");
+      const DD = String(d.getDate()).padStart(2, "0");
+      const MM = String(d.getMonth() + 1).padStart(2, "0");
+      const YYYY = d.getFullYear();
+      title.textContent = `Записи за ${DD}.${MM}.${YYYY}`;
+
+      box.innerHTML = "";
+
+      if (!entries.length) {
+        box.textContent = "Нет записей.";
+        return;
+      }
+
+      entries.forEach((e) => {
+        const div = document.createElement("div");
+        div.className = "entry";
+
+        let mediaHtml = "";
+        if (e.meta) {
+          if (e.meta.photo && e.meta.photo.file_id) {
+            const src = `/api/media/photo/${encodeURIComponent(
+              e.meta.photo.file_id
+            )}`;
+            mediaHtml += `<img src="${src}" alt="photo" />`;
+          }
+          if (e.meta.animation && e.meta.animation.file_id) {
+            const src = `/api/media/animation/${encodeURIComponent(
+              e.meta.animation.file_id
+            )}`;
+            mediaHtml += `<video src="${src}" autoplay loop muted playsinline></video>`;
+          }
+        }
+
+        div.innerHTML = `
+          <div><b>${e.value}</b> — ${e.note || "(нет комментария)"}</div>
+          <div style="color:#94a3b8;font-size:13px">
+            ${formatFullDateTime(e.timestamp)}
+          </div>
+          ${mediaHtml}
+        `;
+        box.appendChild(div);
+      });
+    }
+
+    function alignToMidnight(ts) {
+      const d = new Date(ts);
+      d.setHours(0, 0, 0, 0);
+      return d.getTime();
+    }
+
+    async function loadBoardsForViewer() {
+      try {
+        const res = await fetch("/api/boards");
+        const data = await res.json();
+        availableBoards = data.boards || [];
+        selectedBoardIds = availableBoards.map((b) => b.id);
+        renderBoardsFilter();
+      } catch (e) {
+        console.error("Failed to load boards", e);
+        availableBoards = [];
+        selectedBoardIds = [];
+        const el = document.getElementById("boards-filter");
+        if (el) {
+          el.textContent = "Не удалось загрузить список графиков.";
+        }
+      }
+    }
+
+    function renderBoardsFilter() {
+      const container = document.getElementById("boards-filter");
+      if (!container) return;
+
+      if (!availableBoards.length) {
+        container.textContent = "Нет доступных графиков.";
+        return;
+      }
+
+      container.innerHTML = "";
+      const label = document.createElement("span");
+      label.textContent = "Графики:";
+      container.appendChild(label);
+
+      availableBoards.forEach((b) => {
+        const chip = document.createElement("label");
+        chip.className = "board-chip";
+
+        const input = document.createElement("input");
+        input.type = "checkbox";
+        input.checked = selectedBoardIds.includes(b.id);
+        input.addEventListener("change", async () => {
+          if (input.checked) {
+            if (!selectedBoardIds.includes(b.id)) {
+              selectedBoardIds.push(b.id);
+            }
+          } else {
+            selectedBoardIds = selectedBoardIds.filter((id) => id !== b.id);
+          }
+          rawData = await loadData();
+          updateChart(currentRange);
+        });
+
+        const span = document.createElement("span");
+        span.textContent = b.title;
+
+        chip.appendChild(input);
+        chip.appendChild(span);
+        container.appendChild(chip);
+      });
+    }
+
+
+
+    function buildChartDatasets(rangeValue) {
+      const now = Date.now();
+
+      if (!rawData.length) {
+        const toTime = now;
+        const fromTime = alignToMidnight(now - 7 * DAY_MS);
+        return { datasets: [], unit: "day", fromTime, toTime };
+      }
+
+      let filtered = rawData.slice();
+      let rangeDays;
+      let fromTime;
+      const toTime = now;
+
+      if (rangeValue === "all") {
+        filtered = rawData.filter(
+          (e) => new Date(e.timestamp).getTime() <= now
+        );
+        if (!filtered.length) {
+          const ft = alignToMidnight(now - 7 * DAY_MS);
+          return { datasets: [], unit: "day", fromTime: ft, toTime: now };
+        }
+        const first = new Date(filtered[0].timestamp).getTime();
+        rangeDays = Math.max(1, Math.round((now - first) / DAY_MS));
+        fromTime = alignToMidnight(first);
+      } else {
+        rangeDays = Number(rangeValue);
+        fromTime = alignToMidnight(now - rangeDays * DAY_MS);
+        filtered = rawData.filter((e) => {
+          const t = new Date(e.timestamp).getTime();
+          return t >= fromTime && t <= now;
+        });
+      }
+
+      if (!filtered.length) {
+        return { datasets: [], unit: "day", fromTime, toTime };
+      }
+
+      const byUser = {};
+      filtered.forEach((e) => {
+        const authorId =
+          e.meta && e.meta.chatId ? String(e.meta.chatId) : "unknown";
+
+        if (!byUser[authorId]) {
+          byUser[authorId] = {
+            raw: [],
+            meta: e.meta || {},
+          };
+        }
+        byUser[authorId].raw.push(e);
+      });
+
+      let unit = "day";
+      if (rangeValue === "all" || rangeDays > 7) {
+        if (rangeDays <= 60) unit = "week";
+        else unit = "month";
+      } else {
+        unit = "day";
+      }
+
+      const datasets = [];
+      const authorIds = Object.keys(byUser);
+
+      authorIds.forEach((authorId, idx) => {
+        const group = byUser[authorId];
+        let points = [];
+
+        if (rangeValue === "all" || rangeDays > 7) {
+          const map = {};
+          group.raw.forEach((e) => {
+            const key = dateKey(e.timestamp);
+            if (!map[key]) {
+              map[key] = { sum: 0, count: 0 };
+            }
+            map[key].sum += e.value;
+            map[key].count += 1;
+          });
+
+          const keys = Object.keys(map).sort();
+          points = keys.map((key) => {
+            const info = map[key];
+            const avg = info.sum / info.count;
+            const x = new Date(key + "T00:00:00Z").getTime();
+            return { x, y: avg, day: key };
+          });
+        } else {
+          points = group.raw.map((e) => ({
+            x: new Date(e.timestamp).getTime(),
+            y: e.value,
+            day: dateKey(e.timestamp),
+          }));
+        }
+
+        const m = group.meta;
+        const label =
+          (m && m.username) ||
+          (m &&
+            [m.first_name, m.last_name].filter(Boolean).join(" ")) ||
+          `user ${authorId}`;
+
+        datasets.push({
+          label,
+          data: points,
+          borderWidth: 2,
+          pointRadius: 3,
+          tension: 0,
+          borderColor: COLORS[idx % COLORS.length],
+          fill: false,
+        });
+      });
+
+      return { datasets, unit, fromTime, toTime };
+    }
+
+
+    const moodFillPlugin = {
+      id: "moodFill",
+      beforeDatasetsDraw(chart, args, pluginOptions) {
+        const { ctx, scales } = chart;
+        const yAxis = scales.y;
+        const yZeroPix = yAxis.getPixelForValue(0);
+
+        ctx.save();
+
+        chart.data.datasets.forEach((dataset, di) => {
+          const meta = chart.getDatasetMeta(di);
+          if (!meta || !meta.data || meta.data.length < 2) return;
+
+          const data = dataset.data;
+
+          for (let i = 0; i < meta.data.length - 1; i++) {
+            const p1 = meta.data[i];
+            const p2 = meta.data[i + 1];
+            const d1 = data[i].y;
+            const d2 = data[i + 1].y;
+
+            if (p1.skip || p2.skip || d1 == null || d2 == null) continue;
+
+            const x1 = p1.x;
+            const y1 = p1.y;
+            const x2 = p2.x;
+            const y2 = p2.y;
+
+            if (d1 === 0 && d2 === 0) continue;
+
+            const fillSegment = (xStart, yStart, xEnd, yEnd, color) => {
+              ctx.beginPath();
+              ctx.moveTo(xStart, yStart);
+              ctx.lineTo(xEnd, yEnd);
+              ctx.lineTo(xEnd, yZeroPix);
+              ctx.lineTo(xStart, yZeroPix);
+              ctx.closePath();
+              ctx.fillStyle = color;
+              ctx.globalAlpha = 0.25;
+              ctx.fill();
+              ctx.globalAlpha = 1;
+            };
+
+            if (d1 >= 0 && d2 >= 0) {
+              fillSegment(x1, y1, x2, y2, "rgba(34,197,94,1)");
+            } else if (d1 <= 0 && d2 <= 0) {
+              fillSegment(x1, y1, x2, y2, "rgba(248,113,113,1)");
+            } else {
+              const t = d1 / (d1 - d2);
+              const xZero = x1 + t * (x2 - x1);
+
+              if (d1 > 0 && d2 < 0) {
+                fillSegment(x1, y1, xZero, yZeroPix, "rgba(34,197,94,1)");
+                fillSegment(
+                  xZero,
+                  yZeroPix,
+                  x2,
+                  y2,
+                  "rgba(248,113,113,1)"
+                );
+              } else if (d1 < 0 && d2 > 0) {
+                fillSegment(x1, y1, xZero, yZeroPix, "rgba(248,113,113,1)");
+                fillSegment(xZero, yZeroPix, x2, y2, "rgba(34,197,94,1)");
+              }
+            }
+          }
+        });
+
+        ctx.restore();
+      },
+    };
+
+
+        async function renderChart(initialRange = "7") {
+          currentRange = initialRange;
+          rawData = await loadData();
+
+          const rangeSelect = document.getElementById("range-select");
+          rangeSelect.value = initialRange;
+
+          const ctx = document.getElementById("chart");
+          const { datasets, unit, fromTime, toTime } =
+            buildChartDatasets(initialRange);
+
+          chart = new Chart(ctx, {
+            type: "line",
+            data: {
+              datasets,
+            },
+            options: {
+              parsing: false,
+              responsive: true,
+              maintainAspectRatio: false,
+              scales: {
+                x: {
+                  type: "time",
+                  time: {
+                    unit: unit,
+                  },
+                  ticks: {
+                    callback: (value, index, ticks) => {
+                      const v = ticks[index].value;
+                      return formatShortDate(v);
+                    },
+                  },
+                  grid: {
+                    display: true,
+                    },
+                  min: fromTime,
+                  max: toTime,
+                },
+                y: {
+                  min: -100,
+                  max: 100,
+                    grid: {
+                    color: (ctxGrid) =>
+                      ctxGrid.tick.value === 0 ? "#e5e7eb33" : "#1f2933",
+                   },
+                },
+              },
+              plugins: {
+                legend: { display: true },
+                tooltip: {
+                  callbacks: {
+                    label: (ctx) => `${ctx.dataset.label}: ${ctx.parsed.y}`,
+                    title: () => "",
+                  },
+                },
+              },
+              interaction: {
+                mode: "nearest",
+                intersect: true,
+              },
+              onClick: async (evt) => {
+                const pointsAtClick = chart.getElementsAtEventForMode(
+                  evt,
+                  "nearest",
+                    { intersect: true },
+                  true
+                );
+                if (!pointsAtClick.length) return;
+
+                const first = pointsAtClick[0];
+                const dsIndex = first.datasetIndex;
+                const ptIndex = first.index;
+                const point = chart.data.datasets[dsIndex].data[ptIndex];
+
+                const key =
+                  point.day || new Date(point.x).toISOString().slice(0, 10);
+
+                const entries = await loadDay(key);
+                renderDayEntries(key, entries);
+              },
+            },
+            plugins: [moodFillPlugin],
+          });
+
+          rangeSelect.addEventListener("change", () => {
+            currentRange = rangeSelect.value;
+            updateChart(currentRange);
+          });
+        }
+
+
+    function updateChart(rangeValue) {
+      if (!chart) return;
+      const { datasets, unit, fromTime, toTime } =
+        buildChartDatasets(rangeValue);
+
+      chart.data.datasets = datasets;
+      chart.options.scales.x.time.unit = unit;
+      chart.options.scales.x.min = fromTime;
+      chart.options.scales.x.max = toTime;
+
+      chart.update();
+    }
+
+
+        document.addEventListener("DOMContentLoaded", () => {
+          initTheme();
+
+          const loginBtn = document.getElementById("auth-login-btn");
+          if (loginBtn) {
+            loginBtn.addEventListener("click", handleLogin);
+          }
+
+          (async () => {
+            await loadCurrentUser();
+            await loadBoardsForViewer();
+            await renderChart("7");
+          })();
+        });
+
+  </script>
+</body>
+</html>

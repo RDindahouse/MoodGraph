@@ -1,0 +1,744 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <title>Admin – Mood</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <style>
+    body {
+      background: #0f172a;
+      color: #e5e7eb;
+      font-family: system-ui, sans-serif;
+      display: flex;
+      justify-content: center;
+      padding: 30px 10px;
+      margin: 0;
+    }
+
+    .container {
+      max-width: 1100px;
+      width: 100%;
+    }
+
+    h1 {
+      margin-top: 0;
+      margin-bottom: 16px;
+      font-size: 26px;
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+      gap: 16px;
+    }
+
+    .card {
+      background: #020617;
+      border-radius: 12px;
+      padding: 16px;
+      box-shadow: 0 10px 25px rgba(15, 23, 42, 0.8);
+      border: 1px solid #1e293b;
+    }
+
+    .card h2 {
+      margin-top: 0;
+      font-size: 18px;
+      margin-bottom: 12px;
+    }
+
+    label {
+      display: block;
+      font-size: 13px;
+      color: #9ca3af;
+      margin-bottom: 4px;
+    }
+
+    input[type="text"],
+    input[type="password"],
+    select {
+      width: 100%;
+      padding: 6px 8px;
+      border-radius: 6px;
+      border: 1px solid #1f2933;
+      background: #020617;
+      color: #e5e7eb;
+      font-size: 14px;
+      box-sizing: border-box;
+    }
+
+    input:focus,
+    select:focus {
+      outline: none;
+      border-color: #3b82f6;
+    }
+
+    .field {
+      margin-bottom: 10px;
+    }
+
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 999px;
+      padding: 6px 12px;
+      border: none;
+      cursor: pointer;
+      font-size: 13px;
+      font-weight: 500;
+      background: #1f2937;
+      color: #e5e7eb;
+      transition: background 0.15s ease, transform 0.1s ease;
+    }
+
+    .btn.primary {
+      background: #3b82f6;
+    }
+
+    .btn.danger {
+      background: #b91c1c;
+    }
+
+    .btn:disabled {
+      opacity: 0.4;
+      cursor: default;
+    }
+
+    .btn:hover:not(:disabled) {
+      transform: translateY(-1px);
+      background: #4b5563;
+    }
+    .btn.primary:hover:not(:disabled) {
+      background: #2563eb;
+    }
+    .btn.danger:hover:not(:disabled) {
+      background: #dc2626;
+    }
+
+    .status {
+      font-size: 13px;
+      margin-top: 6px;
+      color: #9ca3af;
+      word-break: break-all;
+    }
+
+    code {
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas,
+        "Liberation Mono", "Courier New", monospace;
+      font-size: 12px;
+      background: #020617;
+      padding: 2px 4px;
+      border-radius: 4px;
+      border: 1px solid #1e293b;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 13px;
+    }
+
+    th,
+    td {
+      border-bottom: 1px solid #1e293b;
+      padding: 4px 6px;
+      text-align: left;
+    }
+
+    th {
+      font-weight: 500;
+      color: #9ca3af;
+    }
+
+    tr:last-child td {
+      border-bottom: none;
+    }
+
+    .small {
+      font-size: 12px;
+      color: #9ca3af;
+    }
+
+    .mt-8 {
+      margin-top: 8px;
+    }
+    .mt-12 {
+      margin-top: 12px;
+    }
+
+    .inline {
+      display: inline-block;
+    }
+
+    .pill {
+      display: inline-flex;
+      align-items: center;
+      padding: 2px 6px;
+      background: #111827;
+      border-radius: 999px;
+      font-size: 11px;
+      border: 1px solid #1f2937;
+    }
+
+    .pill.green {
+      border-color: #16a34a;
+      color: #bbf7d0;
+    }
+
+    .pill.red {
+      border-color: #b91c1c;
+      color: #fecaca;
+    }
+
+    .pill.gray {
+      border-color: #4b5563;
+      color: #e5e7eb;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>Админ-панель Mood</h1>
+
+    <!-- Инфо о входе и текущем админе -->
+    <div class="card" style="margin-bottom:16px;">
+      <div class="small">
+        Вход в эту панель идёт по basic-auth. Данные берутся из файла
+        <code>data/admins.json</code>. Базовый админ создаётся автоматически:
+        <code>admin / admin</code>. Пароль лучше поменять в файле.
+      </div>
+      <div class="mt-8 small">
+        Текущий админ: <span id="admin-username">Загрузка…</span><br />
+        Статус Telegram: <span id="admin-tg-status">Загрузка…</span>
+      </div>
+    </div>
+
+    <!-- ПЕРВАЯ СЕТКА: настройки бота/сайта + привязка телеги -->
+    <div class="grid" style="margin-top:16px;">
+      <div class="card">
+        <h2>Настройки бота и сайта</h2>
+
+        <div class="field">
+          <label for="bot-token">Токен Telegram-бота</label>
+          <input id="bot-token" type="text" placeholder="123456:ABC-DEF..." />
+        </div>
+
+        <div class="field">
+          <label for="site-base-url">Адрес сайта (для инвайтов)</label>
+          <input
+            id="site-base-url"
+            type="text"
+            placeholder="https://example.com"
+          />
+          <div class="small">
+            Используется для формирования полной ссылки приглашения.
+            Если оставить пустым, будет использоваться
+            <code>window.location.origin</code>.
+          </div>
+        </div>
+
+        <button class="btn primary" id="btn-save-bot-token">
+          Сохранить настройки
+        </button>
+
+        <div class="status" id="status-bot">Загрузка…</div>
+        <div class="small mt-8">
+          После изменения токена бота нужно перезапустить бота:
+          <code>node bot.js</code>
+        </div>
+      </div>
+
+      <div class="card">
+        <h2>Привязка Telegram</h2>
+        <div class="small">
+          Привязка позволяет боту узнавать, какие графики принадлежат какому
+          администратору.
+        </div>
+        <button class="btn primary mt-8" id="btn-generate-link-token">
+          Сгенерировать токен привязки
+        </button>
+        <div class="status" id="status-link">
+          Нажми кнопку, чтобы получить токен привязки.
+        </div>
+        <div class="small mt-8">
+          Отправь боту команду:
+          <br />
+          <code>/link &lt;токен&gt;</code>
+        </div>
+      </div>
+    </div>
+
+    <!-- ВТОРАЯ СЕТКА: графики + инвайты -->
+    <div class="grid" style="margin-top:16px;">
+      <!-- Графики -->
+      <div class="card">
+        <h2>Мои графики</h2>
+
+        <div class="field">
+          <label for="board-title">Название нового графика</label>
+          <input
+            id="board-title"
+            type="text"
+            placeholder="Например: Общее настроение"
+          />
+        </div>
+
+        <div class="field">
+          <label>
+            <input type="checkbox" id="board-public" />
+            <span class="small">График публичный (виден всем на сайте)</span>
+          </label>
+        </div>
+
+        <button class="btn primary" id="btn-create-board">Создать график</button>
+
+        <div class="status mt-8" id="boards-status">Загрузка…</div>
+        <div class="mt-8" id="boards-list"></div>
+      </div>
+
+      <!-- Инвайты -->
+      <div class="card">
+        <h2>Инвайты</h2>
+
+        <div class="field">
+          <label for="invite-board">График, к которому даём доступ</label>
+          <select id="invite-board"></select>
+        </div>
+
+        <div class="field">
+          <label for="invite-role">Кого пригласить</label>
+          <select id="invite-role">
+            <option value="user">Обычный пользователь</option>
+            <option value="admin">Администратор</option>
+          </select>
+        </div>
+
+        <button class="btn primary" id="btn-create-invite">Создать инвайт</button>
+
+        <div class="status mt-8" id="invite-output">
+          Сначала выбери график и роль.
+        </div>
+        <div class="small mt-8">
+          Инвайт одноразовый: после регистрации по токену он становится
+          недействительным.
+        </div>
+      </div>
+    </div>
+
+    <!-- Пользователи и доступ -->
+    <div class="card" style="margin-top:16px;">
+      <h2>Пользователи и доступ к графикам</h2>
+      <div class="small">
+        Здесь можно смотреть, какие пользователи имеют доступ к каким графикам,
+        и включать/выключать доступ.
+      </div>
+      <div class="mt-8" id="users-access-output">Загрузка…</div>
+    </div>
+  </div>
+
+  <script>
+    let siteBaseUrl = "";
+
+    async function apiJson(url, method = "GET", body) {
+      const opts = { method, headers: {} };
+      if (body) {
+        opts.headers["Content-Type"] = "application/json";
+        opts.body = JSON.stringify(body);
+      }
+      const res = await fetch(url, opts);
+      if (!res.ok) {
+        let msg = res.status + " " + res.statusText;
+        try {
+          const j = await res.json();
+          if (j.error) msg = j.error;
+        } catch {}
+        throw new Error(msg);
+      }
+      return res.json();
+    }
+    async function loadAdminInfo() {
+      const nameEl = document.getElementById("admin-username");
+      const tgEl = document.getElementById("admin-tg-status");
+      nameEl.textContent = "Загрузка…";
+      tgEl.textContent = "Загрузка…";
+
+      try {
+        const data = await apiJson("/api/admin/me");
+        const admin = data.admin;
+        if (!admin) {
+          nameEl.textContent = "неизвестно";
+          tgEl.textContent = "нет данных";
+          return;
+        }
+
+        nameEl.textContent = admin.username || "(без имени)";
+
+        if (admin.telegramId) {
+          tgEl.innerHTML =
+            '<span class="pill green">Привязан</span> ' +
+            (admin.telegramUsername
+              ? "(@" + admin.telegramUsername + ", id " + admin.telegramId + ")"
+              : "(id " + admin.telegramId + ")");
+        } else {
+          tgEl.innerHTML =
+            '<span class="pill gray">Не привязан</span> ' +
+            "Сгенерируй токен и отправь его боту через /link.";
+        }
+      } catch (e) {
+        console.error(e);
+        nameEl.textContent = "Ошибка";
+        tgEl.textContent = "Ошибка: " + e.message;
+      }
+    }
+
+    async function loadBotConfig() {
+      const status = document.getElementById("status-bot");
+      const tokenInput = document.getElementById("bot-token");
+      const siteInput = document.getElementById("site-base-url");
+
+      status.textContent = "Загрузка…";
+      try {
+        const cfg = await apiJson("/api/admin/config");
+        if (cfg.botToken) {
+          tokenInput.value = "";
+          status.textContent = "Токен бота сохранён.";
+          status.style.color = "lightgreen";
+        } else {
+          status.textContent = "Токен ещё не задан.";
+          status.style.color = "#9ca3af";
+        }
+
+        siteBaseUrl = cfg.siteBaseUrl || "";
+        siteInput.value = siteBaseUrl;
+
+        if (!siteBaseUrl) {
+          siteBaseUrl = window.location.origin;
+        }
+      } catch (e) {
+        status.textContent = "Ошибка: " + e.message;
+        status.style.color = "red";
+      }
+    }
+
+    async function saveBotToken() {
+      const tokenInput = document.getElementById("bot-token");
+      const siteInput = document.getElementById("site-base-url");
+      const status = document.getElementById("status-bot");
+
+      const token = tokenInput.value.trim();
+      const site = siteInput.value.trim();
+
+      status.textContent = "Сохранение...";
+      status.style.color = "#9ca3af";
+
+      try {
+        await apiJson("/api/admin/config", "POST", {
+          botToken: token || undefined,
+          siteBaseUrl: site || "",
+        });
+        status.textContent = "Настройки сохранены.";
+        status.style.color = "lightgreen";
+
+        if (site) {
+          siteBaseUrl = site;
+        } else {
+          siteBaseUrl = window.location.origin;
+        }
+
+        tokenInput.value = "";
+      } catch (e) {
+        status.textContent = "Ошибка: " + e.message;
+        status.style.color = "red";
+      }
+    }
+
+    async function generateLinkToken() {
+      const status = document.getElementById("status-link");
+      status.textContent = "Запрос токена...";
+      status.style.color = "#9ca3af";
+      try {
+        const data = await apiJson("/api/admin/link-token", "POST", {});
+        status.innerHTML =
+          "Токен привязки: <code>" +
+          data.token +
+          "</code><br>Отправь боту: <code>/link " +
+          data.token +
+          "</code>";
+        status.style.color = "lightgreen";
+      } catch (e) {
+        status.textContent = "Ошибка: " + e.message;
+        status.style.color = "red";
+      }
+    }
+
+    let cachedBoards = [];
+
+    async function loadBoards() {
+      const status = document.getElementById("boards-status");
+      const list = document.getElementById("boards-list");
+      const inviteSelect = document.getElementById("invite-board");
+
+      status.textContent = "Загрузка графиков...";
+      list.innerHTML = "";
+      inviteSelect.innerHTML = "";
+
+      try {
+        const data = await apiJson("/api/admin/boards");
+        const boards = data.boards || [];
+        cachedBoards = boards;
+
+        if (!boards.length) {
+          status.textContent = "Графиков пока нет.";
+          status.style.color = "#9ca3af";
+          return;
+        }
+
+        status.textContent = "";
+        status.style.color = "#9ca3af";
+
+        const ul = document.createElement("ul");
+        ul.style.listStyle = "none";
+        ul.style.padding = "0";
+        ul.style.margin = "0";
+
+        boards.forEach((b) => {
+          const li = document.createElement("li");
+          li.style.display = "flex";
+          li.style.alignItems = "center";
+          li.style.justifyContent = "space-between";
+          li.style.padding = "4px 0";
+
+          const left = document.createElement("div");
+          left.innerHTML =
+            "<b>" +
+            b.title +
+            "</b> <span class='small'>(id: " +
+            b.id +
+            ")</span><br>" +
+            "<span class='small'>Владелец: " +
+            (b.ownerAdminUsername || "—") +
+            (b.ownerTelegramId ? ", tgId " + b.ownerTelegramId : "") +
+            "</span> " +
+            (b.isPublic
+              ? "<span class='pill green'>public</span>"
+              : "<span class='pill gray'>private</span>");
+
+          const btnDel = document.createElement("button");
+          btnDel.className = "btn danger";
+          btnDel.textContent = "Удалить";
+          btnDel.addEventListener("click", async () => {
+            if (!confirm("Удалить график '" + b.title + "'?")) return;
+            try {
+              await apiJson(
+                "/api/admin/boards/" + encodeURIComponent(b.id),
+                "DELETE"
+              );
+              await loadBoards();
+              await loadUsersAccess();
+            } catch (e) {
+              alert("Ошибка удаления: " + e.message);
+            }
+          });
+
+          li.appendChild(left);
+          li.appendChild(btnDel);
+          ul.appendChild(li);
+        });
+
+        list.appendChild(ul);
+
+        boards.forEach((b) => {
+          const opt = document.createElement("option");
+          opt.value = b.id;
+          opt.textContent = b.title + " (" + b.id + ")";
+          inviteSelect.appendChild(opt);
+        });
+      } catch (e) {
+        console.error(e);
+        status.textContent = "Ошибка: " + e.message;
+        status.style.color = "red";
+      }
+    }
+
+    async function createBoard() {
+      const titleInput = document.getElementById("board-title");
+      const publicCheckbox = document.getElementById("board-public");
+      const status = document.getElementById("boards-status");
+
+      const title = titleInput.value.trim();
+      if (!title) {
+        status.textContent = "Введите название графика.";
+        status.style.color = "orange";
+        return;
+      }
+
+      status.textContent = "Создание...";
+      status.style.color = "#9ca3af";
+
+      try {
+        await apiJson("/api/admin/boards", "POST", {
+          title,
+          isPublic: publicCheckbox.checked,
+        });
+        titleInput.value = "";
+        publicCheckbox.checked = false;
+        status.textContent = "График создан.";
+        status.style.color = "lightgreen";
+        await loadBoards();
+        await loadUsersAccess();
+      } catch (e) {
+        status.textContent = "Ошибка: " + e.message;
+        status.style.color = "red";
+      }
+    }
+
+    async function createInvite() {
+      const boardSelect = document.getElementById("invite-board");
+      const roleSelect = document.getElementById("invite-role");
+      const out = document.getElementById("invite-output");
+
+      const boardId = boardSelect.value;
+      const role = roleSelect.value;
+
+      if (!boardId) {
+        out.textContent = "Сначала создай график.";
+        out.style.color = "orange";
+        return;
+      }
+
+      out.textContent = "Создание инвайта...";
+      out.style.color = "#9ca3af";
+
+      try {
+        const data = await apiJson("/api/admin/invites", "POST", {
+          boardId,
+          role,
+        });
+
+        const base =
+          (siteBaseUrl && siteBaseUrl.trim()) || window.location.origin;
+        const fullUrl =
+          base.replace(/\/$/, "") + (data.inviteUrl || "/invite/" + data.token);
+
+        out.innerHTML =
+          "Инвайт создан.<br>" +
+          "Токен: <code>" +
+          data.token +
+          "</code><br>" +
+          "Полная ссылка: <a href=\"" +
+          fullUrl +
+          '" target="_blank">' +
+          fullUrl +
+          "</a><br>" +
+          "Роль: " +
+          (role === "admin" ? "администратор" : "пользователь") +
+          "<br>Токен одноразовый: после регистрации станет недействительным.";
+        out.style.color = "lightgreen";
+      } catch (e) {
+        out.textContent = "Ошибка: " + e.message;
+        out.style.color = "red";
+      }
+    }
+
+    async function loadUsersAccess() {
+      const out = document.getElementById("users-access-output");
+      out.textContent = "Загрузка...";
+      try {
+        const data = await apiJson("/api/admin/users");
+        const users = data.users || [];
+        const boards = data.boards || [];
+
+        if (!users.length) {
+          out.textContent = "Пока нет пользователей.";
+          return;
+        }
+
+        const table = document.createElement("table");
+        const thead = document.createElement("thead");
+        const headRow = document.createElement("tr");
+
+        headRow.innerHTML =
+          "<th>Пользователь</th><th>Роль</th>" +
+          boards.map((b) => `<th>${b.title}</th>`).join("");
+        thead.appendChild(headRow);
+        table.appendChild(thead);
+
+        const tbody = document.createElement("tbody");
+
+        users.forEach((u) => {
+          const tr = document.createElement("tr");
+
+          const nameTd = document.createElement("td");
+          nameTd.textContent = u.username;
+          tr.appendChild(nameTd);
+
+          const roleTd = document.createElement("td");
+          roleTd.textContent =
+            (u.role || "user") === "admin" ? "admin" : "user";
+          tr.appendChild(roleTd);
+
+          boards.forEach((b) => {
+            const td = document.createElement("td");
+            const checkbox = document.createElement("input");
+            checkbox.type = "checkbox";
+            checkbox.checked = u.boards.includes(b.id);
+
+            checkbox.addEventListener("change", async () => {
+              try {
+                const newBoards = new Set(u.boards || []);
+                if (checkbox.checked) {
+                  newBoards.add(b.id);
+                } else {
+                  newBoards.delete(b.id);
+                }
+                const arrBoards = Array.from(newBoards);
+                u.boards = arrBoards;
+
+                await apiJson(
+                  "/api/admin/users/" + encodeURIComponent(u.id) + "/boards",
+                  "POST",
+                  { boards: arrBoards }
+                );
+              } catch (err) {
+                alert("Ошибка обновления: " + err.message);
+              }
+            });
+
+            td.appendChild(checkbox);
+            tr.appendChild(td);
+          });
+
+          tbody.appendChild(tr);
+        });
+
+        table.appendChild(tbody);
+        out.innerHTML = "";
+        out.appendChild(table);
+      } catch (e) {
+        out.textContent = "Ошибка: " + e.message;
+      }
+    }
+
+    document.addEventListener("DOMContentLoaded", () => {
+      document
+        .getElementById("btn-save-bot-token")
+        .addEventListener("click", saveBotToken);
+      document
+        .getElementById("btn-generate-link-token")
+        .addEventListener("click", generateLinkToken);
+      document
+        .getElementById("btn-create-board")
+        .addEventListener("click", createBoard);
+      document
+        .getElementById("btn-create-invite")
+        .addEventListener("click", createInvite);
+
+      loadAdminInfo();
+      loadBotConfig();
+      loadBoards();
+      loadUsersAccess();
+    });
+  </script>
+</body>
+</html>
