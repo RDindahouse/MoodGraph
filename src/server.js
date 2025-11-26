@@ -82,6 +82,40 @@ async function adminAuth(req, res, next) {
   next();
 }
 
+app.post("/api/admin/password", adminAuth, async (req, res) => {
+  try {
+    const { oldPassword, newPassword } = req.body || {};
+
+    if (!oldPassword || !newPassword) {
+      return res.status(400).json({ error: "Укажи старый и новый пароль." });
+    }
+
+    if (newPassword.length < 6) {
+      return res
+        .status(400)
+        .json({ error: "Новый пароль должен быть не короче 6 символов." });
+    }
+
+    const admin = req.admin; // выставили в adminAuth
+    if (!admin) {
+      return res.status(401).json({ error: "Не авторизован." });
+    }
+
+    const ok = await bcrypt.compare(oldPassword, admin.passwordHash);
+    if (!ok) {
+      return res.status(400).json({ error: "Старый пароль неверный." });
+    }
+
+    const newHash = await bcrypt.hash(newPassword, 10);
+    storage.updateAdminPasswordHash(admin.id, newHash);
+
+    return res.json({ ok: true });
+  } catch (e) {
+    console.error("Error in /api/admin/password:", e);
+    return res.status(500).json({ error: "Внутренняя ошибка сервера." });
+  }
+});
+
 // ================== helper: visible boards ==================
 
 function getVisibleBoardIdsForRequest(req) {

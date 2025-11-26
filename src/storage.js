@@ -160,12 +160,33 @@ function getAdminByTelegramId(telegramId) {
   };
 }
 
+function getAdminByUsername(username) {
+  const row = db
+    .prepare("SELECT * FROM admins WHERE username = ?")
+    .get(username);
+  if (!row) return null;
+  return {
+    id: row.id,
+    username: row.username,
+    passwordHash: row.password_hash,
+    telegramId: row.telegram_id,
+    telegramUsername: row.telegram_username,
+    linkToken: row.link_token,
+  };
+}
+
 function createAdmin({ username, passwordHash }) {
   const id = "a_" + crypto.randomBytes(8).toString("hex");
   db.prepare(
     "INSERT INTO admins (id, username, password_hash) VALUES (?, ?, ?)"
   ).run(id, username, passwordHash);
   return getAdminByUsername(username);
+}
+
+function updateAdminPasswordHash(adminId, newPasswordHash) {
+  db.prepare(
+    "UPDATE admins SET password_hash = ? WHERE id = ?"
+  ).run(newPasswordHash, adminId);
 }
 
 function updateAdminTelegram(id, { telegramId, telegramUsername }) {
@@ -377,7 +398,9 @@ module.exports = {
   getAdminByUsername,
   getAdminByLinkToken,
   getAdminByTelegramId,
+  getAdminByUsername,
   createAdmin,
+  updateAdminPasswordHash,
   updateAdminTelegram,
   setAdminLinkToken,
   ensureDefaultAdmin,
