@@ -7,6 +7,8 @@
   <link rel="stylesheet" href="/styles.css" />
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns"></script>
+  <!-- add shared theme script -->
+  <script src="/theme.js"></script>
 </head>
 
 <body>
@@ -45,6 +47,9 @@
       <div id="auth-user" class="auth-user"></div>
       <div id="auth-error" class="auth-error"></div>
     </div>
+
+    <!-- add quick navigation to admin page -->
+    <a href="/admin" class="theme-toggle">Админка</a>
 
     <button id="theme-toggle" class="theme-toggle" type="button">
       <img id="theme-icon" src="/icons/sun-light.svg" width="20" height="20" />
@@ -156,37 +161,6 @@
         window.location.reload();
       } catch (e) {
         errorBox.textContent = "Ошибка: " + e.message;
-      }
-    }
-
-
-    function applyTheme(theme) {
-      document.body.dataset.theme = theme;
-
-      const icon = document.getElementById("theme-icon");
-      if (!icon) return;
-
-      if (theme === "dark") {
-        icon.src = "/icons/light_theme.svg";
-      } else {
-        icon.src = "/icons/dark_theme.svg";
-      }
-    }
-
-    function initTheme() {
-      const saved = localStorage.getItem("theme");
-      const theme = saved === "light" || saved === "dark" ? saved : "dark";
-      applyTheme(theme);
-
-      const btn = document.getElementById("theme-toggle");
-      if (btn) {
-        btn.addEventListener("click", () => {
-          const current =
-            document.body.dataset.theme === "light" ? "light" : "dark";
-          const next = current === "light" ? "dark" : "light";
-          localStorage.setItem("theme", next);
-          applyTheme(next);
-        });
       }
     }
 

@@ -5,11 +5,11 @@
   <meta charset="UTF-8" />
   <title>Admin – Mood</title>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-
+  <link rel="stylesheet" href="/styles.css" />
   <style>
     body {
-      background: #0f172a;
-      color: #e5e7eb;
+      background: var(--bg);
+      color: var(--text);
       font-family: system-ui, sans-serif;
       display: flex;
       justify-content: center;
@@ -35,11 +35,11 @@
     }
 
     .card {
-      background: #020617;
+      background: var(--card-bg);
       border-radius: 12px;
       padding: 16px;
       box-shadow: 0 10px 25px rgba(15, 23, 42, 0.8);
-      border: 1px solid #1e293b;
+      border: 1px solid var(--border-subtle);
     }
 
     .card h2 {
@@ -61,9 +61,9 @@
       width: 100%;
       padding: 6px 8px;
       border-radius: 6px;
-      border: 1px solid #1f2933;
-      background: #020617;
-      color: #e5e7eb;
+      border: 1px solid var(--border-subtle);
+      background: var(--card-bg);
+      color: var(--text);
       font-size: 14px;
       box-sizing: border-box;
     }
@@ -71,7 +71,7 @@
     input:focus,
     select:focus {
       outline: none;
-      border-color: #3b82f6;
+      border-color: var(--accent);
     }
 
     .field {
@@ -89,16 +89,18 @@
       font-size: 13px;
       font-weight: 500;
       background: #1f2937;
-      color: #e5e7eb;
+      color: var(--text);
       transition: background 0.15s ease, transform 0.1s ease;
     }
 
     .btn.primary {
-      background: #3b82f6;
+      background: var(--accent);
+      color: #fff;
     }
 
     .btn.danger {
       background: #b91c1c;
+      color: #fff;
     }
 
     .btn:disabled {
@@ -130,10 +132,10 @@
       font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas,
         "Liberation Mono", "Courier New", monospace;
       font-size: 12px;
-      background: #020617;
+      background: var(--card-bg);
       padding: 2px 4px;
       border-radius: 4px;
-      border: 1px solid #1e293b;
+      border: 1px solid var(--border-subtle);
     }
 
     table {
@@ -144,7 +146,7 @@
 
     th,
     td {
-      border-bottom: 1px solid #1e293b;
+      border-bottom: 1px solid var(--border-subtle);
       padding: 4px 6px;
       text-align: left;
     }
@@ -204,7 +206,16 @@
 
 <body>
   <div class="container">
-    <h1>Админ-панель Mood</h1>
+    <!-- top bar with navigation and global theme toggle -->
+    <div class="top-bar">
+      <h1>Админ-панель Mood</h1>
+      <div class="top-bar-right">
+        <a href="/" class="theme-toggle">Главная</a>
+        <button id="theme-toggle" class="theme-toggle" type="button">
+          <img id="theme-icon" src="/icons/sun-light.svg" width="20" height="20" />
+        </button>
+      </div>
+    </div>
 
     <div class="card" style="margin-bottom:16px;">
       <div class="small">
@@ -364,6 +375,9 @@
       <div class="mt-8" id="users-access-output">Загрузка…</div>
     </div>
   </div>
+
+  <!-- shared theme script -->
+  <script src="/theme.js"></script>
 
   <script>
     let siteBaseUrl = "";
@@ -798,6 +812,7 @@
     }
 
     document.addEventListener("DOMContentLoaded", () => {
+      initTheme();
       document
         .getElementById("btn-save-bot-token")
         .addEventListener("click", saveBotToken);

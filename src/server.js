@@ -15,6 +15,33 @@ const PORT = process.env.WEB_PORT || process.env.PORT || 3000;
 
 app.use(bodyParser.json());
 
+// helper: uniform error responses
+function sendError(res, status, code, message) {
+  return res.status(status).json({ ok: false, error: { code, message } });
+}
+
+function sendOk(res, payload = {}) {
+  return res.json({ ok: true, ...payload });
+}
+
+// auth for bot -> using configured bot token
+function getBotTokenEffective() {
+  return storage.getBotToken() || process.env.TG_TOKEN || null;
+}
+
+function botAuth(req, res, next) {
+  const expected = getBotTokenEffective();
+  if (!expected) {
+    return sendError(res, 500, "bot_token_not_configured", "Bot token not configured");
+  }
+  // headers are lower-cased in Node
+  const provided = req.headers["x-bot-token"];
+  if (!provided || provided !== expected) {
+    return sendError(res, 403, "forbidden", "Invalid or missing X-Bot-Token");
+  }
+  next();
+}
+
 // ================== cookies / sessions ==================
 
 function parseCookies(header) {
@@ -52,6 +79,7 @@ app.use((req, res, next) => {
     console.log("Site base URL set from DOMAIN env:", envDomain.trim());
   }
 })();
+
 
 // ================== admin auth (basic) ==================
 
@@ -116,6 +144,7 @@ app.post("/api/admin/password", adminAuth, async (req, res) => {
   }
 });
 
+
 // ================== helper: visible boards ==================
 
 function getVisibleBoardIdsForRequest(req) {
@@ -134,6 +163,16 @@ function getVisibleBoardIdsForRequest(req) {
   return Array.from(allowed);
 }
 
+function isLocalRequest(req) {
+  const ip = req.ip || "";
+  return (
+    ip.includes("127.0.0.1") ||
+    ip === "::1" ||
+    ip.endsWith("::ffff:127.0.0.1")
+  );
+}
+
+
 // ================== routes for pages ==================
 
 app.get("/admin.html", adminAuth, (req, res) => {
@@ -150,6 +189,7 @@ app.get("/invite/:token", (req, res) => {
 
 // статика (index.html, styles.css, иконки и т.п.)
 app.use(express.static(WEB_DIR));
+
 
 // ================== moods API ==================
 
@@ -264,6 +304,7 @@ app.post("/api/bot/moods", (req, res) => {
   handlePostMood(req, res, "telegram");
 });
 
+
 // ================== media proxy (Telegram) ==================
 
 function getBotTokenEffective() {
@@ -342,6 +383,7 @@ app.get("/api/media/animation/:fileId", async (req, res) => {
   }
 });
 
+
 // ================== bot & site config ==================
 
 app.get("/api/admin/config", adminAuth, (req, res) => {
@@ -363,6 +405,7 @@ app.post("/api/admin/config", adminAuth, (req, res) => {
 
   res.json({ status: "ok" });
 });
+
 
 // ================== admin profile / telegram link ==================
 
@@ -419,6 +462,122 @@ app.get("/api/bot/is-admin", (req, res) => {
   } catch (e) {
     console.error(e);
     res.status(500).json({ error: "internal error" });
+  }
+});
+
+
+// ================== BOT V1 API (unified) ==================
+app.get("/api/bot/v1/me", (req, res) => {
+  const telegramId = req.query.telegramId;
+  if (!telegramId) {
+    return sendError(res, 400, "telegram_id_required", "telegramId required");
+  }
+
+  try {
+    const admin = storage.getAdminByTelegramId(telegramId);
+    const boardsRaw = storage.getBoardsForTelegram(telegramId);
+    const boards = (boardsRaw || []).map((b) => ({
+      id: String(b.id),
+      title: b.title,
+      ownerAdminUsername: b.owner_admin_username || null,
+      ownerTelegramId: b.owner_telegram_id || null,
+      isPublic: !!b.is_public,
+    }));
+
+    const siteBaseUrl = storage.getSiteBaseUrl() || "";
+
+    return sendOk(res, {
+      admin: admin
+        ? {
+            id: admin.id,
+            username: admin.username,
+            telegramId: admin.telegramId,
+            telegramUsername: admin.telegramUsername,
+          }
+        : null,
+      boards,
+      config: { siteBaseUrl },
+      defaults: { boardId: "default" },
+    });
+  } catch (e) {
+    console.error("GET /api/bot/v1/me error:", e);
+    return sendError(res, 500, "internal_error", "Internal server error");
+  }
+});
+
+app.get("/api/bot/config", (req, res) => {
+  if (!isLocalRequest(req)) {
+    return res.status(403).json({ error: "forbidden" });
+  }
+  const botToken = getBotTokenEffective() || "";
+  const siteBaseUrl = storage.getSiteBaseUrl() || "";
+  res.json({ botToken, siteBaseUrl });
+});
+
+app.post("/api/bot/v1/link", (req, res) => {
+  const { token, telegramId, telegramUsername } = req.body || {};
+  if (!token || !telegramId) {
+    return sendError(res, 400, "bad_request", "token and telegramId required");
+  }
+
+  try {
+    const admin = storage.getAdminByLinkToken(token);
+    if (!admin) {
+      return sendError(res, 400, "invalid_token", "Invalid token");
+    }
+
+    storage.updateAdminTelegram(admin.id, {
+      telegramId: String(telegramId),
+      telegramUsername: telegramUsername || null,
+    });
+
+    const linked = storage.getAdminByTelegramId(telegramId);
+    return sendOk(res, {
+      admin: {
+        id: linked.id,
+        username: linked.username,
+        telegramId: linked.telegramId,
+        telegramUsername: linked.telegramUsername,
+      },
+    });
+  } catch (e) {
+    console.error("POST /api/bot/v1/link error:", e);
+    return sendError(res, 500, "internal_error", "Internal server error");
+  }
+});
+
+app.post("/api/bot/v1/moods", botAuth, (req, res) => {
+  // same validation as handlePostMood, but unified response & telegram source
+  let { value, note, timestamp, source, meta, boardId } = req.body || {};
+
+  value = Number(value);
+  if (isNaN(value) || value < -100 || value > 100) {
+    return sendError(res, 400, "bad_value", "value must be -100..100");
+  }
+
+  if (!boardId || typeof boardId !== "string") {
+    return sendError(res, 400, "bad_board", "boardId is required");
+  }
+
+  const time = timestamp ? new Date(timestamp) : new Date();
+  if (isNaN(time.getTime())) {
+    return sendError(res, 400, "bad_timestamp", "invalid timestamp");
+  }
+
+  try {
+    const entry = {
+      timestamp: time.toISOString(),
+      value,
+      note: note || "",
+      source: source || "telegram",
+      boardId,
+      meta: meta || null,
+    };
+    storage.addMood(entry);
+    return sendOk(res, { entry });
+  } catch (e) {
+    console.error("POST /api/bot/v1/moods error:", e);
+    return sendError(res, 500, "internal_error", "Internal server error");
   }
 });
 
@@ -511,9 +670,9 @@ app.post("/api/admin/boards", adminAuth, (req, res) => {
   storage.createBoard({
     id: boardId,
     title: title.trim(),
-    ownerAdminUsername: admin.username,
-    ownerTelegramId: admin.telegramId,
-    isPublic: !!isPublic,
+    owner_admin_username: admin.username,
+    owner_telegram_id: admin.telegramId,
+    is_public: !!isPublic,
   });
 
   const board = storage.getAllBoards().find((b) => String(b.id) === boardId);
@@ -525,6 +684,7 @@ app.delete("/api/admin/boards/:id", adminAuth, (req, res) => {
   storage.deleteBoard(id);
   res.json({ status: "ok" });
 });
+
 
 // ================== INVITES ==================
 
@@ -589,6 +749,7 @@ app.post("/api/invite/accept", (req, res) => {
   res.json({ status: "ok", user: { id: user.id, username: user.username } });
 });
 
+
 // ================== ADMIN: users & access ==================
 
 app.get("/api/admin/users", adminAuth, (req, res) => {
@@ -611,6 +772,7 @@ app.post("/api/admin/users/:id/boards", adminAuth, (req, res) => {
 
   res.json({ status: "ok" });
 });
+
 
 // ================== LOGIN / LOGOUT / ME ==================
 
@@ -658,8 +820,10 @@ app.get("/api/me", (req, res) => {
   res.json({ user: { id, username, boards, role: role || "user" } });
 });
 
+
 // ================== start ==================
 
 app.listen(PORT, () => {
   console.log(`Server running on http://localhost:${PORT}`);
 });
+
