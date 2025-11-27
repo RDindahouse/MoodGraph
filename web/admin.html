@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="ru">
+<html lang="en">
 
 <head>
   <meta charset="UTF-8" />
@@ -26,6 +26,10 @@
       margin-top: 0;
       margin-bottom: 16px;
       font-size: 26px;
+    }
+
+    .top-bar {
+      margin-bottom: 24px;
     }
 
     .grid {
@@ -208,9 +212,10 @@
   <div class="container">
     <!-- top bar with navigation and global theme toggle -->
     <div class="top-bar">
-      <h1>Админ-панель Mood</h1>
+      <h1>Admin Panel</h1>
       <div class="top-bar-right">
-        <a href="/" class="theme-toggle">Главная</a>
+        <a href="/" class="theme-toggle">Home</a>
+        <div class="auth-user" id="admin-auth-status" style="display:none; margin: 0 12px;"></div>
         <button id="theme-toggle" class="theme-toggle" type="button">
           <img id="theme-icon" src="/icons/sun-light.svg" width="20" height="20" />
         </button>
@@ -219,160 +224,163 @@
 
     <div class="card" style="margin-bottom:16px;">
       <div class="small">
-        Вход в эту панель идёт по basic-auth. Данные берутся из файла
-        <code>data/admins.json</code>. Базовый админ создаётся автоматически:
-        <code>admin / admin</code>. Пароль лучше поменять в файле.
+        Login uses basic-auth. Data from <code>data/admins.json</code>. Default admin created automatically:
+        <code>admin / admin</code>. Change password in file.
       </div>
       <div class="mt-8 small">
-        Текущий админ: <span id="admin-username">Загрузка…</span><br />
-        Статус Telegram: <span id="admin-tg-status">Загрузка…</span>
+        Current admin: <span id="admin-username">Loading…</span><br />
+        Telegram status: <span id="admin-tg-status">Loading…</span>
       </div>
     </div>
 
     <div class="grid" style="margin-top:16px;">
       <div class="card">
-        <h2>Настройки бота и сайта</h2>
+        <h2>Bot and Site Settings</h2>
 
         <div class="field">
-          <label for="bot-token">Токен Telegram-бота</label>
+          <label for="bot-token">Telegram Bot Token</label>
           <input id="bot-token" type="text" placeholder="123456:ABC-DEF..." />
         </div>
 
         <div class="field">
-          <label for="site-base-url">Адрес сайта (для инвайтов)</label>
+          <label for="site-base-url">Site Address (for invites)</label>
           <input id="site-base-url" type="text" placeholder="https://example.com" />
           <div class="small">
-            Используется для формирования полной ссылки приглашения.
-            Если оставить пустым, будет использоваться
-            <code>window.location.origin</code>.
+            Used to form full invite link.
+            If left empty, <code>window.location.origin</code> will be used.
           </div>
         </div>
 
+        <div class="field">
+          <label for="bot-language">Bot Language</label>
+          <select id="bot-language">
+            <option value="en">English</option>
+            <option value="ru">Russian</option>
+          </select>
+          <div class="small">Changes bot messages globally.</div>
+        </div>
+
         <button class="btn primary" id="btn-save-bot-token">
-          Сохранить настройки
+          Save Settings
         </button>
 
-        <div class="status" id="status-bot">Загрузка…</div>
+        <div class="status" id="status-bot">Loading...</div>
         <div class="small mt-8">
-          После изменения токена бота нужно перезапустить бота:
+          After changing bot token, restart the bot:
           <code>node bot.js</code>
         </div>
       </div>
 
       <div class="card">
-        <h2>Привязка Telegram</h2>
+        <h2>Telegram Linking</h2>
         <div class="small">
-          Привязка позволяет боту узнавать, какие графики принадлежат какому
-          администратору.
+          Linking allows the bot to know which charts belong to which
+          administrator.
         </div>
         <button class="btn primary mt-8" id="btn-generate-link-token">
-          Сгенерировать токен привязки
+          Generate Link Token
         </button>
         <div class="status" id="status-link">
-          Нажми кнопку, чтобы получить токен привязки.
+          Click button to get link token.
         </div>
         <div class="small mt-8">
-          Отправь боту команду:
+          Send bot command:
           <br />
-          <code>/link &lt;токен&gt;</code>
+          <code>/link &lt;token&gt;</code>
         </div>
       </div>
     </div>
 
     <div class="grid" style="margin-top:16px;">
       <div class="card">
-        <h2>Смена пароля администратора</h2>
+        <h2>Change Admin Password</h2>
 
         <div class="field">
-          <label for="pwd-old">Текущий пароль</label>
-          <input id="pwd-old" type="password" placeholder="Старый пароль" />
+          <label for="pwd-old">Current Password</label>
+          <input id="pwd-old" type="password" placeholder="Old password" />
         </div>
 
         <div class="field">
-          <label for="pwd-new">Новый пароль</label>
-          <input id="pwd-new" type="password" placeholder="Новый пароль" />
+          <label for="pwd-new">New Password</label>
+          <input id="pwd-new" type="password" placeholder="New password" />
         </div>
 
         <div class="field">
-          <label for="pwd-new2">Повторите новый пароль</label>
-          <input id="pwd-new2" type="password" placeholder="Повтор нового" />
+          <label for="pwd-new2">Repeat New Password</label>
+          <input id="pwd-new2" type="password" placeholder="Repeat new" />
         </div>
 
         <button class="btn primary" id="btn-change-password">
-          Сменить пароль
+          Change Password
         </button>
 
         <div class="status mt-8" id="status-password">
-          Введите текущий и новый пароль.
+          Enter current and new password.
         </div>
         <div class="small mt-8">
-          Пароль меняется только для текущего администратора (того, кто зашёл в
-          эту панель по basic-auth).
+          Password changes only for current admin (the one logged in
+          via basic-auth).
         </div>
       </div>
     </div>
 
-    <!-- ВТОРАЯ СЕТКА: графики + инвайты -->
     <div class="grid" style="margin-top:16px;">
-      <!-- Графики -->
       <div class="card">
-        <h2>Мои графики</h2>
+        <h2>My Charts</h2>
 
         <div class="field">
-          <label for="board-title">Название нового графика</label>
-          <input id="board-title" type="text" placeholder="Например: Общее настроение" />
+          <label for="board-title">New Chart Title</label>
+          <input id="board-title" type="text" placeholder="E.g.: Daily mood" />
         </div>
 
         <div class="field">
           <label>
             <input type="checkbox" id="board-public" />
-            <span class="small">График публичный (виден всем на сайте)</span>
+            <span class="small">Public chart (visible to all on site)</span>
           </label>
         </div>
 
-        <button class="btn primary" id="btn-create-board">Создать график</button>
+        <button class="btn primary" id="btn-create-board">Create Chart</button>
 
-        <div class="status mt-8" id="boards-status">Загрузка…</div>
+        <div class="status mt-8" id="boards-status">Loading...</div>
         <div class="mt-8" id="boards-list"></div>
       </div>
 
-      <!-- Инвайты -->
       <div class="card">
-        <h2>Инвайты</h2>
+        <h2>Invites</h2>
 
         <div class="field">
-          <label for="invite-board">График, к которому даём доступ</label>
+          <label for="invite-board">Chart to give access to</label>
           <select id="invite-board"></select>
         </div>
 
         <div class="field">
-          <label for="invite-role">Кого пригласить</label>
+          <label for="invite-role">Who to invite</label>
           <select id="invite-role">
-            <option value="user">Обычный пользователь</option>
-            <option value="admin">Администратор</option>
+            <option value="user">Regular user</option>
+            <option value="admin">Administrator</option>
           </select>
         </div>
 
-        <button class="btn primary" id="btn-create-invite">Создать инвайт</button>
+        <button class="btn primary" id="btn-create-invite">Create Invite</button>
 
         <div class="status mt-8" id="invite-output">
-          Сначала выбери график и роль.
+          Select chart and role first.
         </div>
         <div class="small mt-8">
-          Инвайт одноразовый: после регистрации по токену он становится
-          недействительным.
+          Invite is one-time: after registration via token it becomes
+          invalid.
         </div>
       </div>
     </div>
 
-    <!-- Пользователи и доступ -->
     <div class="card" style="margin-top:16px;">
-      <h2>Пользователи и доступ к графикам</h2>
+      <h2>Users and Chart Access</h2>
       <div class="small">
-        Здесь можно смотреть, какие пользователи имеют доступ к каким графикам,
-        и включать/выключать доступ.
+        Here you can view which users have access to which charts,
+        and enable/disable access.
       </div>
-      <div class="mt-8" id="users-access-output">Загрузка…</div>
+      <div class="mt-8" id="users-access-output">Loading...</div>
     </div>
   </div>
 
@@ -402,35 +410,54 @@
     async function loadAdminInfo() {
       const nameEl = document.getElementById("admin-username");
       const tgEl = document.getElementById("admin-tg-status");
-      nameEl.textContent = "Загрузка…";
-      tgEl.textContent = "Загрузка…";
+      const authStatus = document.getElementById("admin-auth-status");
+      nameEl.textContent = "Loading…";
+      tgEl.textContent = "Loading…";
 
       try {
         const data = await apiJson("/api/admin/me");
         const admin = data.admin;
         if (!admin) {
-          nameEl.textContent = "неизвестно";
-          tgEl.textContent = "нет данных";
+          nameEl.textContent = "unknown";
+          tgEl.textContent = "no data";
+          if (authStatus) authStatus.style.display = "none";
           return;
         }
 
-        nameEl.textContent = admin.username || "(без имени)";
+        nameEl.textContent = admin.username || "(no name)";
+        
+        if (authStatus) {
+          authStatus.style.display = "block";
+          authStatus.innerHTML = 'Signed in as <b>' + (admin.username || "(no name)") + '</b><button type="button" id="admin-logout-btn">Sign out</button>';
+          const logoutBtn = document.getElementById("admin-logout-btn");
+          if (logoutBtn) {
+            logoutBtn.onclick = async () => {
+              try {
+                await fetch("/api/logout", { method: "POST" });
+                window.location.reload();
+              } catch (e) {
+                console.error("Logout error:", e);
+              }
+            };
+          }
+        }
 
         if (admin.telegramId) {
           tgEl.innerHTML =
-            '<span class="pill green">Привязан</span> ' +
+            '<span class="pill green">Linked</span> ' +
             (admin.telegramUsername
               ? "(@" + admin.telegramUsername + ", id " + admin.telegramId + ")"
               : "(id " + admin.telegramId + ")");
         } else {
           tgEl.innerHTML =
-            '<span class="pill gray">Не привязан</span> ' +
-            "Сгенерируй токен и отправь его боту через /link.";
+            '<span class="pill gray">Not linked</span> ' +
+            "Generate token and send it to bot via /link.";
         }
       } catch (e) {
         console.error(e);
-        nameEl.textContent = "Ошибка";
-        tgEl.textContent = "Ошибка: " + e.message;
+        nameEl.textContent = "Error";
+        tgEl.textContent = "Error: " + e.message;
+        if (authStatus) authStatus.style.display = "none";
       }
     }
 
@@ -438,27 +465,31 @@
       const status = document.getElementById("status-bot");
       const tokenInput = document.getElementById("bot-token");
       const siteInput = document.getElementById("site-base-url");
+      const langInput = document.getElementById("bot-language");
 
-      status.textContent = "Загрузка…";
+      status.textContent = "Loading...";
       try {
         const cfg = await apiJson("/api/admin/config");
         if (cfg.botToken) {
           tokenInput.value = "";
-          status.textContent = "Токен бота сохранён.";
+          status.textContent = "Bot token is set.";
           status.style.color = "lightgreen";
         } else {
-          status.textContent = "Токен ещё не задан.";
+          status.textContent = "Bot token not set yet.";
           status.style.color = "#9ca3af";
         }
 
         siteBaseUrl = cfg.siteBaseUrl || "";
         siteInput.value = siteBaseUrl;
 
+        const botLang = cfg.botLanguage || "en";
+        langInput.value = botLang;
+
         if (!siteBaseUrl) {
           siteBaseUrl = window.location.origin;
         }
       } catch (e) {
-        status.textContent = "Ошибка: " + e.message;
+        status.textContent = "Error: " + e.message;
         status.style.color = "red";
       }
     }
@@ -466,20 +497,23 @@
     async function saveBotToken() {
       const tokenInput = document.getElementById("bot-token");
       const siteInput = document.getElementById("site-base-url");
+      const langInput = document.getElementById("bot-language");
       const status = document.getElementById("status-bot");
 
       const token = tokenInput.value.trim();
       const site = siteInput.value.trim();
+      const lang = langInput.value.trim();
 
-      status.textContent = "Сохранение...";
+      status.textContent = "Saving...";
       status.style.color = "#9ca3af";
 
       try {
         await apiJson("/api/admin/config", "POST", {
           botToken: token || undefined,
           siteBaseUrl: site || "",
+          botLanguage: lang || "en",
         });
-        status.textContent = "Настройки сохранены.";
+        status.textContent = "Settings saved.";
         status.style.color = "lightgreen";
 
         if (site) {
@@ -490,7 +524,7 @@
 
         tokenInput.value = "";
       } catch (e) {
-        status.textContent = "Ошибка: " + e.message;
+        status.textContent = "Error: " + e.message;
         status.style.color = "red";
       }
     }
@@ -801,7 +835,6 @@
         status.textContent = "Пароль успешно изменён.";
         status.style.color = "lightgreen";
 
-        // очистим поля
         oldInput.value = "";
         newInput.value = "";
         new2Input.value = "";

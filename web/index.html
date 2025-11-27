@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="ru">
+<html lang="en">
 <head>
   <meta charset="UTF-8" />
   <title>Mood Graph</title>
@@ -7,67 +7,91 @@
   <link rel="stylesheet" href="/styles.css" />
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns"></script>
-  <!-- add shared theme script -->
   <script src="/theme.js"></script>
+  <script src="/i18n.js"></script>
 </head>
 
 <body>
   <div class="container">
-    <div class="top-bar-right">
-      <div class="filter">
-        <span>Период:</span>
-        <select id="range-select">
-          <option value="1">Последний день</option>
-          <option value="7">Последние 7 дней</option>
-          <option value="30">Последние 30 дней</option>
-          <option value="90">Последние 90 дней</option>
-          <option value="365">Последний год</option>
-          <option value="all">Всё время</option>
-        </select>
+    <div class="top-bar">
+      <div class="top-bar-right" style="margin-left:auto;">
+        <button id="boards-toggle" class="theme-toggle mobile-only" type="button" style="margin-left:8px;" data-i18n="boardsBtn">
+          Boards
+        </button>
       </div>
-
-    <div class="boards-filter" id="boards-filter"></div>
-
-    <div class="auth-box" id="auth-box">
-      <form id="auth-form">
-        <input
-          id="auth-username"
-          type="text"
-          placeholder="логин"
-          autocomplete="username"
-        />
-        <input
-          id="auth-password"
-          type="password"
-          placeholder="пароль"
-          autocomplete="current-password"
-        />
-        <button type="button" id="auth-login-btn">Войти</button>
-      </form>
-      <div id="auth-user" class="auth-user"></div>
-      <div id="auth-error" class="auth-error"></div>
     </div>
 
-    <!-- add quick navigation to admin page -->
-    <a href="/admin" class="theme-toggle">Админка</a>
+    <div class="left-hover-zone" aria-hidden="true"></div>
 
-    <button id="theme-toggle" class="theme-toggle" type="button">
-      <img id="theme-icon" src="/icons/sun-light.svg" width="20" height="20" />
-    </button>
-  </div>
+    <aside class="left-panel" id="left-panel">
+      <div class="left-panel-header">
+        <h2 class="left-panel-title">Mood Graph</h2>
+        <button id="pin-btn" class="pin-btn" title="Закрепить панель">
+          <img src="/icons/pin.svg" alt="Pin" />
+        </button>
+      </div>
+      <div class="left-panel-body">
+        <div class="filter">
+          <span data-i18n="period">Period</span>
+          <select id="range-select">
+            <option value="1" data-i18n="lastDay">Last day</option>
+            <option value="7" data-i18n="last7Days">Last 7 days</option>
+            <option value="30" data-i18n="last30Days">Last 30 days</option>
+            <option value="90" data-i18n="last90Days">Last 90 days</option>
+            <option value="365" data-i18n="lastYear">Last year</option>
+            <option value="all" data-i18n="allTime">All time</option>
+          </select>
+        </div>
 
+        <div class="boards-filter" id="boards-filter"></div>
+      </div>
+    </aside>
 
-    <div class="chart-block">
-      <div class="chart-scroll">
-        <div class="chart-inner">
-          <canvas id="chart"></canvas>
+    <div class="header-controls-wrap">
+      <div class="header-controls">
+        <button id="theme-toggle" class="theme-toggle" type="button">
+          <img id="theme-icon" src="/icons/sun-light.svg" width="20" height="20" />
+        </button>
+
+        <div class="language-selector">
+          <select id="language-select" title="Language">
+            <option value="en">English</option>
+            <option value="ru">Русский</option>
+          </select>
+        </div>
+
+        <div style="display: flex; align-items: center; gap: 8px; margin-left: auto;">
+          <a href="/admin.html" id="settings-btn" class="theme-toggle" style="display:none;" data-i18n="settings">
+            Settings
+          </a>
+          <div class="auth-box" id="auth-box">
+            <form id="auth-form">
+              <input id="auth-username" type="text" placeholder="username" autocomplete="username" data-i18n="username" />
+              <input id="auth-password" type="password" placeholder="password" autocomplete="current-password" data-i18n="password" />
+              <button type="button" id="auth-login-btn" data-i18n="login">Sign in</button>
+            </form>
+            <div id="auth-user" class="auth-user"></div>
+            <div id="auth-error" class="auth-error"></div>
+          </div>
         </div>
       </div>
     </div>
 
-    <div class="entries">
-      <h2 id="day-title">Кликните на точку графика</h2>
-      <div id="day-entries"></div>
+    <div class="layout">
+      <main class="main">
+        <div class="chart-block">
+          <div class="chart-scroll">
+            <div class="chart-inner">
+              <canvas id="chart"></canvas>
+            </div>
+          </div>
+        </div>
+
+        <div class="entries">
+          <h2 id="day-title" data-i18n="clickToSelect">Click on a chart point</h2>
+          <div id="day-entries"></div>
+        </div>
+      </main>
     </div>
   </div>
 
@@ -100,6 +124,7 @@
       const form = document.getElementById("auth-form");
       const userBox = document.getElementById("auth-user");
       const errorBox = document.getElementById("auth-error");
+      const settingsBtn = document.getElementById("settings-btn");
 
       if (!form || !userBox || !errorBox) return;
 
@@ -108,10 +133,11 @@
       if (currentUser) {
         form.style.display = "none";
         userBox.style.display = "block";
+        if (settingsBtn) settingsBtn.style.display = "inline-flex";
         userBox.innerHTML =
-          'Вошёл как <b>' +
+          t("signedInAs") + ' <b>' +
           currentUser.username +
-          '</b><button type="button" id="auth-logout-btn">Выйти</button>';
+          '</b><button type="button" id="auth-logout-btn">' + t("logout") + '</button>';
 
         const logoutBtn = document.getElementById("auth-logout-btn");
         if (logoutBtn) {
@@ -125,6 +151,7 @@
       } else {
         form.style.display = "flex";
         userBox.style.display = "none";
+        if (settingsBtn) settingsBtn.style.display = "none";
       }
     }
 
@@ -139,7 +166,7 @@
       errorBox.textContent = "";
 
       if (!username || !password) {
-        errorBox.textContent = "Введите логин и пароль.";
+        errorBox.textContent = t("enterCredentials");
         return;
       }
 
@@ -150,7 +177,7 @@
           body: JSON.stringify({ username, password }),
         });
         if (!res.ok) {
-          let msg = "Неверный логин или пароль.";
+          let msg = t("invalidCredentials");
           try {
             const j = await res.json();
             if (j.error) msg = j.error;
@@ -160,7 +187,7 @@
         }
         window.location.reload();
       } catch (e) {
-        errorBox.textContent = "Ошибка: " + e.message;
+        errorBox.textContent = t("error") + " " + e.message;
       }
     }
 
@@ -187,8 +214,9 @@
     }
 
     function buildBoardsQueryParam() {
-      if (!selectedBoardIds || !selectedBoardIds.length) return "";
-      return "?boards=" + encodeURIComponent(selectedBoardIds.join(","));
+      // Если графики явно не выбраны, отправляем пустой список (нечего не показывать)
+      // Если графики выбраны, отправляем их ID
+      return "?boards=" + encodeURIComponent((selectedBoardIds || []).join(","));
     }
 
     async function loadData() {
@@ -212,12 +240,12 @@
       const DD = String(d.getDate()).padStart(2, "0");
       const MM = String(d.getMonth() + 1).padStart(2, "0");
       const YYYY = d.getFullYear();
-      title.textContent = `Записи за ${DD}.${MM}.${YYYY}`;
+      title.textContent = t("entriesFor") + ` ${DD}.${MM}.${YYYY}`;
 
       box.innerHTML = "";
 
       if (!entries.length) {
-        box.textContent = "Нет записей.";
+        box.textContent = t("noEntries");
         return;
       }
 
@@ -242,7 +270,7 @@
         }
 
         div.innerHTML = `
-          <div><b>${e.value}</b> — ${e.note || "(нет комментария)"}</div>
+          <div><b>${e.value}</b> — ${e.note || "(no comment)"}</div>
           <div style="color:#94a3b8;font-size:13px">
             ${formatFullDateTime(e.timestamp)}
           </div>
@@ -271,7 +299,7 @@
         selectedBoardIds = [];
         const el = document.getElementById("boards-filter");
         if (el) {
-          el.textContent = "Не удалось загрузить список графиков.";
+          el.textContent = "Failed to load boards.";
         }
       }
     }
@@ -281,13 +309,13 @@
       if (!container) return;
 
       if (!availableBoards.length) {
-        container.textContent = "Нет доступных графиков.";
+        container.textContent = "No available boards.";
         return;
       }
 
       container.innerHTML = "";
       const label = document.createElement("span");
-      label.textContent = "Графики:";
+      label.textContent = "Boards:";
       container.appendChild(label);
 
       availableBoards.forEach((b) => {
@@ -316,9 +344,7 @@
         chip.appendChild(span);
         container.appendChild(chip);
       });
-    }
-
-
+      }
 
     function buildChartDatasets(rangeValue) {
       const now = Date.now();
@@ -542,17 +568,22 @@
                   },
                   grid: {
                     display: true,
-                    },
+                  },
                   min: fromTime,
                   max: toTime,
                 },
                 y: {
                   min: -100,
                   max: 100,
-                    grid: {
-                    color: (ctxGrid) =>
-                      ctxGrid.tick.value === 0 ? "#e5e7eb33" : "#1f2933",
-                   },
+                  grid: {
+                    /* adapt grid color to theme */
+                    color: (ctxGrid) => {
+                      const isDark = document.body.dataset.theme !== "light";
+                      const isZero = ctxGrid.tick && ctxGrid.tick.value === 0;
+                      if (isZero) return isDark ? "#e5e7eb55" : "#1f293733";
+                      return isDark ? "#ffffff14" : "#1f293712";
+                    },
+                  },
                 },
               },
               plugins: {
@@ -613,21 +644,105 @@
     }
 
 
-        document.addEventListener("DOMContentLoaded", () => {
-          initTheme();
+    function initPanelState() {
+      const panel = document.getElementById("left-panel");
+      const pinBtn = document.getElementById("pin-btn");
+      const pinIcon = pinBtn ? pinBtn.querySelector("img") : null;
+      const toggleBtn = document.getElementById("boards-toggle");
+      const hoverZone = document.querySelector(".left-hover-zone");
 
-          const loginBtn = document.getElementById("auth-login-btn");
-          if (loginBtn) {
-            loginBtn.addEventListener("click", handleLogin);
-          }
+      const mqDesktop = window.matchMedia("(min-width: 769px)");
+      const isMobile = () => window.matchMedia("(max-width: 768px)").matches;
 
-          (async () => {
-            await loadCurrentUser();
-            await loadBoardsForViewer();
-            await renderChart("7");
-          })();
+      const savedPinned = localStorage.getItem("panelPinned");
+      let pinned = savedPinned === "true";
+      if (savedPinned === null && mqDesktop.matches) pinned = true;
+
+      const updatePinIcon = () => {
+        if (!pinIcon) return;
+        const isPinned = document.body.classList.contains("panel-pinned");
+        pinIcon.src = isPinned ? "/icons/unpin.svg" : "/icons/pin.svg";
+        pinBtn.title = isPinned ? "Открепить панель" : "Закрепить панель";
+      };
+
+      document.body.classList.toggle("panel-pinned", pinned);
+      panel.classList.toggle("open", pinned);
+      updatePinIcon();
+
+      if (pinBtn) {
+        pinBtn.addEventListener("click", () => {
+          const isPinned = document.body.classList.contains("panel-pinned");
+          const nowPinned = !isPinned;
+          document.body.classList.toggle("panel-pinned", nowPinned);
+          localStorage.setItem("panelPinned", String(nowPinned));
+          updatePinIcon();
         });
+      }
+
+      if (toggleBtn) {
+        toggleBtn.addEventListener("click", () => {
+          panel.classList.toggle("open");
+        });
+      }
+
+      // Hover-to-open zone on desktop when not pinned
+      if (hoverZone && panel) {
+        hoverZone.addEventListener("mouseenter", () => {
+          if (isMobile()) return;
+          if (!document.body.classList.contains("panel-pinned")) {
+            panel.classList.add("open");
+          }
+        });
+      }
+
+      // Close immediately when the cursor leaves the panel (if not pinned)
+      panel.addEventListener("mouseleave", () => {
+        if (isMobile()) return;
+        if (!document.body.classList.contains("panel-pinned")) {
+          panel.classList.remove("open");
+        }
+      });
+
+      // Keep pinned state across breakpoint changes
+      mqDesktop.addEventListener("change", (e) => {
+        const savedPinnedNow = localStorage.getItem("panelPinned");
+        const pinnedNow = savedPinnedNow === "true";
+        document.body.classList.toggle("panel-pinned", pinnedNow || e.matches);
+        panel.classList.toggle(
+          "open",
+          document.body.classList.contains("panel-pinned")
+        );
+        updatePinIcon();
+      });
+    }
+
+    document.addEventListener("DOMContentLoaded", () => {
+      initTheme();
+      updateAllTranslations();
+      initPanelState();
+      
+      const languageSelect = document.getElementById("language-select");
+      if (languageSelect) {
+        languageSelect.value = currentLanguage;
+        languageSelect.addEventListener("change", (e) => {
+          setLanguage(e.target.value);
+          updateAllTranslations();
+        });
+      }
+      
+      const loginBtn = document.getElementById("auth-login-btn");
+      if (loginBtn) {
+        loginBtn.addEventListener("click", handleLogin);
+      }
+      
+      (async () => {
+        await loadCurrentUser();
+        await loadBoardsForViewer();
+        await renderChart("7");
+      })();
+    });
 
   </script>
+  <script src="/theme.js"></script>
 </body>
 </html>

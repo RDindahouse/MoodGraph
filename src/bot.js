@@ -2,9 +2,45 @@ const TelegramBot = require("node-telegram-bot-api");
 const fetch = require("node-fetch");
 const fs = require("fs");
 const path = require("path");
+const { json } = require("body-parser");
 
 const DATA_DIR = process.env.DATA_DIR || path.join(__dirname, "data");
 const CONFIG_FILE = path.join(DATA_DIR, "config.json");
+
+const botMessages = {
+  en: {
+    start: "Welcome to Mood Graph! Use /mood to log your mood.",
+    moodStart: "What is your mood today? (from -100 to 100)\n\n-100 = Very bad, 0 = Neutral, 100 = Excellent",
+    moodReceived: "Got it! Your mood: {value}",
+    invalidMood: "Please send a number between -100 and 100.",
+    note: "Add a note (optional, send /skip to skip):",
+    noteSkipped: "Mood saved without a note.",
+    noteSaved: "Mood saved with note: {note}",
+    selectBoard: "Which board to save to?",
+    addPhoto: "Add a photo? (or /skip):",
+    noBoards: "You don't have any boards yet. Use /create to create one.",
+    boardCreated: "Board '{title}' created!",
+    boardDeleted: "Board deleted.",
+    link: "Use this link to access your boards:\n{url}",
+    error: "Error: {message}",
+  },
+  ru: {
+    start: "Добро пожаловать в Mood Graph! Используй /mood для записи настроения.",
+    moodStart: "Какое у тебя сейчас настроение? (от -100 до 100)\n\n-100 = Очень плохо, 0 = Нейтрально, 100 = Отлично",
+    moodReceived: "Понял! Твоё настроение: {value}",
+    invalidMood: "Пожалуйста, отправь число от -100 до 100.",
+    note: "Добавь заметку (опционально, отправь /skip для пропуска):",
+    noteSkipped: "Настроение сохранено без заметки.",
+    noteSaved: "Настроение сохранено с заметкой: {note}",
+    selectBoard: "На какой график сохранить?",
+    addPhoto: "Добавить фото? (или /skip):",
+    noBoards: "У тебя ещё нет графиков. Используй /create для создания.",
+    boardCreated: "График '{title}' создан!",
+    boardDeleted: "График удалён.",
+    link: "Используй эту ссылку для доступа к своим графикам:\n{url}",
+    error: "Ошибка: {message}",
+  }
+};
 
 function readConfig() {
   try {
@@ -14,19 +50,26 @@ function readConfig() {
   }
 }
 
-async function checkIsAdmin(telegramId) {
-  // deprecated: replaced by fetchBotMe()
+async function fetchBotLanguage() {
   try {
-    const me = await fetch(
-      `http://localhost:3000/api/bot/v1/me?telegramId=${encodeURIComponent(
-        telegramId
-      )}`
-    ).then((r) => r.json());
-    return !!me?.admin;
+    const res = await fetch("http://localhost:3000/api/bot/config");
+    if (!res.ok) return "en";
+    const json = await res.json();
+    return json.botLanguage || "en";
   } catch (e) {
-    console.error("bot v1 /me error:", e);
-    return false;
+    console.error("Failed to fetch bot language:", e);
+    return "en";
   }
+}
+
+let currentBotLanguage = "en";
+
+async function getBotMessage(key, params = {}) {
+  if (currentBotLanguage === "en" && botMessages.en[key]) {
+    return botMessages.en[key].replace(/{(\w+)}/g, (_, k) => params[k] || "");
+  }
+  const msg = botMessages[currentBotLanguage]?.[key] || botMessages.en[key] || key;
+  return msg.replace(/{(\w+)}/g, (_, k) => params[k] || "");
 }
 
 async function fetchBotMe(telegramId) {
@@ -45,9 +88,7 @@ async function fetchBotMe(telegramId) {
   }
 }
 
-
-const cfg = readConfig();
-let TG_TOKEN = cfg.botToken || process.env.TG_TOKEN;
+let TG_TOKEN = process.env.TG_TOKEN;
 
 async function fetchBotTokenFromServer() {
   try {
@@ -64,7 +105,6 @@ async function fetchBotTokenFromServer() {
 
 let bot = null;
 
-// In-memory per-chat state for the /mood flow
 const userStates = Object.create(null);
 
 async function tryInitBot() {
@@ -81,12 +121,13 @@ async function tryInitBot() {
     return;
   }
 
+  currentBotLanguage = await fetchBotLanguage();
+
   bot = new TelegramBot(TG_TOKEN, { polling: true });
   console.log(
     "Telegram bot started with token from",
-    cfg.botToken ? "config.json" : process.env.TG_TOKEN ? "ENV" : "DB"
+    json.botToken ? "config.json" : process.env.TG_TOKEN ? "ENV" : "DB"
   );
-
 
   bot.onText(/\/start/, (msg) => {
     const chatId = msg.chat.id;
@@ -379,9 +420,7 @@ async function tryInitBot() {
 tryInitBot();
 setInterval(tryInitBot, 5000);
 
-// use v1 API endpoints
 const API_URL = "http://localhost:3000/api/bot/v1/moods";
-// const BOARDS_URL = "http://localhost:3000/api/bot/boards"; // not needed in v1
 
 async function sendMoodToApi(chatId, user, moodValue, note, extraMeta, boardId) {
   const meta = {

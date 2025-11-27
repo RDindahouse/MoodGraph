@@ -124,7 +124,7 @@ app.post("/api/admin/password", adminAuth, async (req, res) => {
         .json({ error: "Новый пароль должен быть не короче 6 символов." });
     }
 
-    const admin = req.admin; // выставили в adminAuth
+    const admin = req.admin;
     if (!admin) {
       return res.status(401).json({ error: "Не авторизован." });
     }
@@ -187,7 +187,6 @@ app.get("/invite/:token", (req, res) => {
   res.sendFile(path.join(WEB_DIR, "invite.html"));
 });
 
-// статика (index.html, styles.css, иконки и т.п.)
 app.use(express.static(WEB_DIR));
 
 
@@ -235,14 +234,15 @@ app.get("/api/moods", (req, res) => {
 
   const boardsParam = req.query.boards;
   let selectedIds;
-  if (boardsParam) {
+  if (typeof boardsParam === "string") {
+    // boardsParam exists and is a string (even if empty)
     const requested = boardsParam
       .split(",")
       .map((s) => s.trim())
       .filter(Boolean);
-    const filtered = requested.filter((id) => allowedIds.includes(id));
-    selectedIds = filtered.length ? filtered : allowedIds;
+    selectedIds = requested.length > 0 ? requested.filter((id) => allowedIds.includes(id)) : [];
   } else {
+
     selectedIds = allowedIds;
   }
 
@@ -268,13 +268,13 @@ app.get("/api/moods/day/:date", (req, res) => {
 
   const boardsParam = req.query.boards;
   let selectedIds;
-  if (boardsParam) {
+  if (typeof boardsParam === "string") {
+    // boardsParam exists and is a string (even if empty)
     const requested = boardsParam
       .split(",")
       .map((s) => s.trim())
       .filter(Boolean);
-    const filtered = requested.filter((id) => allowedIds.includes(id));
-    selectedIds = filtered.length ? filtered : allowedIds;
+    selectedIds = requested.length > 0 ? requested.filter((id) => allowedIds.includes(id)) : [];
   } else {
     selectedIds = allowedIds;
   }
@@ -389,11 +389,12 @@ app.get("/api/media/animation/:fileId", async (req, res) => {
 app.get("/api/admin/config", adminAuth, (req, res) => {
   const botToken = storage.getBotToken() || "";
   const siteBaseUrl = storage.getSiteBaseUrl() || "";
-  res.json({ botToken, siteBaseUrl });
+  const botLanguage = storage.getBotLanguage() || "en";
+  res.json({ botToken, siteBaseUrl, botLanguage });
 });
 
 app.post("/api/admin/config", adminAuth, (req, res) => {
-  const { botToken, siteBaseUrl } = req.body || {};
+  const { botToken, siteBaseUrl, botLanguage } = req.body || {};
 
   if (typeof botToken === "string" && botToken.trim()) {
     storage.setBotToken(botToken.trim());
@@ -401,6 +402,10 @@ app.post("/api/admin/config", adminAuth, (req, res) => {
 
   if (typeof siteBaseUrl === "string") {
     storage.setSiteBaseUrl(siteBaseUrl.trim());
+  }
+
+  if (typeof botLanguage === "string") {
+    storage.setBotLanguage(botLanguage.trim());
   }
 
   res.json({ status: "ok" });
@@ -511,7 +516,8 @@ app.get("/api/bot/config", (req, res) => {
   }
   const botToken = getBotTokenEffective() || "";
   const siteBaseUrl = storage.getSiteBaseUrl() || "";
-  res.json({ botToken, siteBaseUrl });
+  const botLanguage = storage.getBotLanguage() || "en";
+  res.json({ botToken, siteBaseUrl, botLanguage });
 });
 
 app.post("/api/bot/v1/link", (req, res) => {
@@ -670,9 +676,9 @@ app.post("/api/admin/boards", adminAuth, (req, res) => {
   storage.createBoard({
     id: boardId,
     title: title.trim(),
-    owner_admin_username: admin.username,
-    owner_telegram_id: admin.telegramId,
-    is_public: !!isPublic,
+    ownerAdminUsername: admin.username,
+    ownerTelegramId: admin.telegramId,
+    isPublic: !!isPublic,
   });
 
   const board = storage.getAllBoards().find((b) => String(b.id) === boardId);

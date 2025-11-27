@@ -1,15 +1,9 @@
 const db = require("./db");
 const crypto = require("crypto");
 
-// ======= helpers =======
-
 function nowIso() {
   return new Date().toISOString();
 }
-
-// ======= USERS =======
-
-// user: { id, username, passwordHash, role, boards: [boardId...] }
 
 function getUserByUsername(username) {
   const row = db
@@ -107,8 +101,6 @@ function getAllUsersWithBoards() {
   }));
 }
 
-// ======= ADMINS =======
-
 function getAllAdmins() {
   return db.prepare("SELECT * FROM admins").all();
 }
@@ -160,26 +152,18 @@ function getAdminByTelegramId(telegramId) {
   };
 }
 
-function getAdminByUsername(username) {
-  const row = db
-    .prepare("SELECT * FROM admins WHERE username = ?")
-    .get(username);
-  if (!row) return null;
-  return {
-    id: row.id,
-    username: row.username,
-    passwordHash: row.password_hash,
-    telegramId: row.telegram_id,
-    telegramUsername: row.telegram_username,
-    linkToken: row.link_token,
-  };
-}
-
 function createAdmin({ username, passwordHash }) {
   const id = "a_" + crypto.randomBytes(8).toString("hex");
   db.prepare(
     "INSERT INTO admins (id, username, password_hash) VALUES (?, ?, ?)"
   ).run(id, username, passwordHash);
+
+  // ensure corresponding user account exists for admin login to index.html
+  const existingUser = getUserByUsername(username);
+  if (!existingUser) {
+    createUser({ username, passwordHash, role: "admin", boards: [] });
+  }
+
   return getAdminByUsername(username);
 }
 
@@ -187,6 +171,15 @@ function updateAdminPasswordHash(adminId, newPasswordHash) {
   db.prepare(
     "UPDATE admins SET password_hash = ? WHERE id = ?"
   ).run(newPasswordHash, adminId);
+
+  // also update corresponding user if exists
+  const admin = db.prepare("SELECT username FROM admins WHERE id = ?").get(adminId);
+  if (admin && admin.username) {
+    const user = getUserByUsername(admin.username);
+    if (user) {
+      db.prepare("UPDATE users SET password_hash = ? WHERE id = ?").run(newPasswordHash, user.id);
+    }
+  }
 }
 
 function updateAdminTelegram(id, { telegramId, telegramUsername }) {
@@ -217,9 +210,29 @@ function ensureDefaultAdmin(passwordHash) {
   db.prepare(
     "INSERT INTO admins (id, username, password_hash) VALUES (?, ?, ?)"
   ).run(id, "admin", passwordHash);
+
+  // create matching user entry so default admin can login on index.html
+  const userExists = getUserByUsername("admin");
+  if (!userExists) {
+    createUser({ username: "admin", passwordHash, role: "admin", boards: [] });
+  }
 }
 
-// ======= CONFIG (botToken, siteBaseUrl) =======
+// utility: ensure every admin has a matching user account
+function syncAdminsToUsers() {
+  const admins = getAllAdmins();
+  admins.forEach((a) => {
+    const user = getUserByUsername(a.username);
+    if (!user) {
+      createUser({
+        username: a.username,
+        passwordHash: a.password_hash,
+        role: "admin",
+        boards: [],
+      });
+    }
+  });
+}
 
 function getConfigValue(key) {
   const row = db.prepare("SELECT value FROM config WHERE key = ?").get(key);
@@ -256,7 +269,29 @@ function setSiteBaseUrl(url) {
   }
 }
 
-// ======= BOARDS =======
+function getBotLanguage() {
+  return getConfigValue("botLanguage") || "en";
+}
+
+function setBotLanguage(lang) {
+  if (!lang || lang === "en") {
+    db.prepare("DELETE FROM config WHERE key = 'botLanguage'").run();
+  } else {
+    setConfigValue("botLanguage", lang);
+  }
+}
+
+function getBotLanguage() {
+  return getConfigValue("botLanguage") || "en";
+}
+
+function setBotLanguage(lang) {
+  if (!lang || lang === "en") {
+    db.prepare("DELETE FROM config WHERE key = 'botLanguage'").run();
+  } else {
+    setConfigValue("botLanguage", lang);
+  }
+}
 
 function getAllBoards() {
   return db.prepare("SELECT * FROM boards").all();
@@ -294,8 +329,6 @@ function getBoardsForTelegram(telegramId) {
     .all(String(telegramId));
 }
 
-// ======= INVITES =======
-
 function createInvite({ token, boardId, role }) {
   db.prepare(
     `
@@ -323,8 +356,6 @@ function markInviteUsed(token) {
   db.prepare("UPDATE invites SET used = 1 WHERE token = ?").run(token);
 }
 
-// ======= SESSIONS =======
-
 function createSession(userId) {
   const sid = crypto.randomBytes(16).toString("hex");
   db.prepare(
@@ -344,8 +375,6 @@ function getUserBySession(sid) {
 function deleteSession(sid) {
   db.prepare("DELETE FROM sessions WHERE sid = ?").run(sid);
 }
-
-// ======= MOODS =======
 
 function addMood({ timestamp, value, note, source, boardId, meta }) {
   const id = "m_" + crypto.randomBytes(8).toString("hex");
@@ -383,51 +412,37 @@ function getAllMoods() {
   }));
 }
 
-// ======= EXPORT =======
-
 module.exports = {
-  // users
   getUserByUsername,
   getUserById,
   createUser,
   setUserBoards,
   getAllUsersWithBoards,
-
-  // admins
   getAllAdmins,
   getAdminByUsername,
   getAdminByLinkToken,
   getAdminByTelegramId,
-  getAdminByUsername,
   createAdmin,
   updateAdminPasswordHash,
   updateAdminTelegram,
   setAdminLinkToken,
   ensureDefaultAdmin,
-
-  // config
   getBotToken,
   setBotToken,
   getSiteBaseUrl,
   setSiteBaseUrl,
-
-  // boards
+  getBotLanguage,
+  setBotLanguage,
   getAllBoards,
   createBoard,
   deleteBoard,
   getBoardsForTelegram,
-
-  // invites
   createInvite,
   getInviteByToken,
   markInviteUsed,
-
-  // sessions
   createSession,
   getUserBySession,
   deleteSession,
-
-  // moods
   addMood,
   getAllMoods,
 };
