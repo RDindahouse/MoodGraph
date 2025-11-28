@@ -383,6 +383,78 @@ app.get("/api/media/animation/:fileId", async (req, res) => {
   }
 });
 
+app.get("/api/media/video/:fileId", async (req, res) => {
+  const token = getBotTokenEffective();
+  if (!token) return res.status(500).send("Bot token not configured");
+
+  const fileId = req.params.fileId;
+
+  try {
+    const fileRes = await fetch(
+      `https://api.telegram.org/bot${token}/getFile?file_id=${encodeURIComponent(
+        fileId
+      )}`
+    );
+    const fileJson = await fileRes.json();
+    if (!fileJson.ok) {
+      return res.status(500).send("Failed to get file info");
+    }
+
+    const filePath = fileJson.result.file_path;
+    const fileUrl = `https://api.telegram.org/file/bot${token}/${filePath}`;
+
+    const tgRes = await fetch(fileUrl);
+    if (!tgRes.ok) {
+      return res.status(500).send("Failed to fetch file");
+    }
+
+    const contentType =
+      tgRes.headers.get("content-type") || "application/octet-stream";
+    res.setHeader("Content-Type", contentType);
+
+    tgRes.body.pipe(res);
+  } catch (err) {
+    console.error(err);
+    res.status(500).send("Error fetching media");
+  }
+});
+
+app.get("/api/media/sticker/:fileId", async (req, res) => {
+  const token = getBotTokenEffective();
+  if (!token) return res.status(500).send("Bot token not configured");
+
+  const fileId = req.params.fileId;
+
+  try {
+    const fileRes = await fetch(
+      `https://api.telegram.org/bot${token}/getFile?file_id=${encodeURIComponent(
+        fileId
+      )}`
+    );
+    const fileJson = await fileRes.json();
+    if (!fileJson.ok) {
+      return res.status(500).send("Failed to get file info");
+    }
+
+    const filePath = fileJson.result.file_path;
+    const fileUrl = `https://api.telegram.org/file/bot${token}/${filePath}`;
+
+    const tgRes = await fetch(fileUrl);
+    if (!tgRes.ok) {
+      return res.status(500).send("Failed to fetch file");
+    }
+
+    const contentType =
+      tgRes.headers.get("content-type") || "application/octet-stream";
+    res.setHeader("Content-Type", contentType);
+
+    tgRes.body.pipe(res);
+  } catch (err) {
+    console.error(err);
+    res.status(500).send("Error fetching media");
+  }
+});
+
 
 // ================== bot & site config ==================
 
@@ -416,14 +488,34 @@ app.post("/api/admin/config", adminAuth, (req, res) => {
 
 app.get("/api/admin/me", adminAuth, (req, res) => {
   const admin = req.admin;
+  const adminLanguage = storage.getAdminLanguage(admin.id);
   res.json({
     admin: {
       id: admin.id,
       username: admin.username,
       telegramId: admin.telegramId,
       telegramUsername: admin.telegramUsername,
+      language: adminLanguage,
     },
   });
+});
+
+app.get("/api/admin/language", adminAuth, (req, res) => {
+  const admin = req.admin;
+  const language = storage.getAdminLanguage(admin.id);
+  res.json({ language });
+});
+
+app.post("/api/admin/language", adminAuth, (req, res) => {
+  const admin = req.admin;
+  const { language } = req.body || {};
+
+  if (!language || !["en", "ru"].includes(language)) {
+    return sendError(res, 400, "invalid_language", "Language must be 'en' or 'ru'");
+  }
+
+  storage.setAdminLanguage(admin.id, language);
+  res.json({ status: "ok", language });
 });
 
 app.post("/api/admin/link-token", adminAuth, (req, res) => {
@@ -490,6 +582,8 @@ app.get("/api/bot/v1/me", (req, res) => {
     }));
 
     const siteBaseUrl = storage.getSiteBaseUrl() || "";
+    const lastBoardId = admin ? storage.getAdminLastBoardId(admin.id) : null;
+    const adminLanguage = admin ? storage.getAdminLanguage(admin.id) : "en";
 
     return sendOk(res, {
       admin: admin
@@ -498,6 +592,8 @@ app.get("/api/bot/v1/me", (req, res) => {
             username: admin.username,
             telegramId: admin.telegramId,
             telegramUsername: admin.telegramUsername,
+            lastBoardId,
+            language: adminLanguage,
           }
         : null,
       boards,
@@ -506,6 +602,26 @@ app.get("/api/bot/v1/me", (req, res) => {
     });
   } catch (e) {
     console.error("GET /api/bot/v1/me error:", e);
+    return sendError(res, 500, "internal_error", "Internal server error");
+  }
+});
+
+app.post("/api/bot/v1/set-last-board", (req, res) => {
+  const { telegramId, boardId } = req.body || {};
+  if (!telegramId || !boardId) {
+    return sendError(res, 400, "bad_request", "telegramId and boardId required");
+  }
+
+  try {
+    const admin = storage.getAdminByTelegramId(telegramId);
+    if (!admin) {
+      return sendError(res, 400, "not_found", "Admin not found");
+    }
+
+    storage.setAdminLastBoardId(admin.id, boardId);
+    return sendOk(res, { boardId });
+  } catch (e) {
+    console.error("POST /api/bot/v1/set-last-board error:", e);
     return sendError(res, 500, "internal_error", "Internal server error");
   }
 });
@@ -579,6 +695,12 @@ app.post("/api/bot/v1/moods", botAuth, (req, res) => {
       boardId,
       meta: meta || null,
     };
+    console.log("[server] /api/bot/v1/moods received:", {
+      boardId,
+      value,
+      notePreview: (note || "").slice(0, 200),
+      metaKeys: meta ? Object.keys(meta) : null,
+    });
     storage.addMood(entry);
     return sendOk(res, { entry });
   } catch (e) {

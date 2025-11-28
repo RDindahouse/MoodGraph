@@ -6,6 +6,7 @@
   --border-subtle: #1f2937; /* subtle borders for dark */
   --accent: #FC93AD;        /* keep pink accent */
   --sidebar-width: 280px;
+  --entry-body: #a1a5a8;
 }
 
 body[data-theme="light"] {
@@ -14,6 +15,7 @@ body[data-theme="light"] {
   --card-bg: #ffffff;
   --card-text: #0f172a;
   --border-subtle: #e5e7eb;
+  --entry-body: #0f172a;
 }
 
 
@@ -103,6 +105,17 @@ body.panel-pinned .left-panel {
   display: block;
   width: 18px;
   height: 18px;
+}
+
+/* Invert pin/unpin icons on light theme for better contrast */
+/* Light theme: show original icon (assumed black) */
+body[data-theme="light"] .pin-btn img {
+  filter: none;
+}
+
+/* Dark theme: tint icon to accent color. Values tuned to approximate #FC93AD */
+body[data-theme="dark"] .pin-btn img {
+  filter: invert(23%) sepia(61%) saturate(500%) hue-rotate(320deg) brightness(95%) contrast(95%);
 }
 
 /* panel body scrollable */
@@ -396,6 +409,41 @@ select {
 .entry {
   padding: 6px 0;
   border-bottom: 1px solid var(--border-subtle);
+}
+
+.entry-title {
+  font-weight: 700;
+  margin-bottom: 4px;
+}
+
+.entry-body {
+  color: var(--entry-body);
+  font-size: 14px;
+  white-space: pre-wrap;
+  margin-bottom: 6px;
+}
+
+.entry-date {
+  color: #94a3b8;
+  font-size: 13px;
+  margin-top: 6px;
+}
+
+.entry-media img,
+.entry-media video {
+  max-width: 100%;
+  border-radius: 8px;
+  display: block;
+  margin-top: 6px;
+}
+
+.entry-media video {
+  max-height: 360px;
+}
+
+.entry-media .sticker {
+  width: 120px;
+  height: auto;
 }
 
 .entry:last-child {

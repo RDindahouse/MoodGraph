@@ -259,22 +259,76 @@
             const src = `/api/media/photo/${encodeURIComponent(
               e.meta.photo.file_id
             )}`;
-            mediaHtml += `<img src="${src}" alt="photo" />`;
+            mediaHtml += `<div class="entry-media"><img src="${src}" alt="photo" /></div>`;
           }
           if (e.meta.animation && e.meta.animation.file_id) {
             const src = `/api/media/animation/${encodeURIComponent(
               e.meta.animation.file_id
             )}`;
-            mediaHtml += `<video src="${src}" autoplay loop muted playsinline></video>`;
+            mediaHtml += `<div class="entry-media"><video src="${src}" autoplay loop muted playsinline></video></div>`;
+          }
+          if (e.meta.video && e.meta.video.file_id) {
+            const src = `/api/media/video/${encodeURIComponent(
+              e.meta.video.file_id
+            )}`;
+            mediaHtml += `<div class="entry-media"><video src="${src}" controls playsinline></video></div>`;
+          }
+          if (e.meta.sticker && e.meta.sticker.file_id) {
+            const src = `/api/media/sticker/${encodeURIComponent(
+              e.meta.sticker.file_id
+            )}`;
+            mediaHtml += `<div class="entry-media"><img src="${src}" alt="sticker" class="sticker"/></div>`;
+          }
+        }
+
+        // Определяем цвет для кружка
+        let circleColor = "#94a3b8"; // gray по умолчанию
+        if (e.value <= -20) {
+          circleColor = "#ef4444"; // красный для -100 до -20
+        } else if (e.value >= 21) {
+          circleColor = "#22c55e"; // зелёный для 21 до 100
+        }
+
+        // Парсим title и body из note. Если title не был предоставлен при вводе,
+        // то сохраняем всю заметку как тело (body), а заголовок остаётся пустым.
+        let title = "";
+        let body = "";
+        if (e.note) {
+          const lines = e.note.split("\n");
+          const titleProvided = e.meta && typeof e.meta.titleProvided !== 'undefined' ? e.meta.titleProvided : true;
+          if (titleProvided) {
+            title = lines[0] || "";
+            if (lines.length > 1) {
+              body = lines.slice(1).join("\n");
+            }
+          } else {
+            // Treat entire note as body when title wasn't provided
+            body = e.note;
           }
         }
 
         div.innerHTML = `
-          <div><b>${e.value}</b> — ${e.note || "(no comment)"}</div>
-          <div style="color:#94a3b8;font-size:13px">
-            ${formatFullDateTime(e.timestamp)}
+          <div style="display: flex; gap: 12px; margin-bottom: 8px; align-items:flex-start;">
+            <div style="
+              width: 24px;
+              height: 24px;
+              min-width: 24px;
+              border-radius: 50%;
+              background: ${circleColor};
+              display: flex;
+              align-items: center;
+              justify-content: center;
+              color: white;
+              font-weight: bold;
+              font-size: 12px;
+            ">${e.value}</div>
+            <div style="flex: 1;">
+              ${title ? `<div class="entry-title">${title}</div>` : ""}
+              ${body ? `<div class="entry-body">${body}</div>` : ""}
+              ${mediaHtml}
+              <div class="entry-date">${formatFullDateTime(e.timestamp)}</div>
+            </div>
           </div>
-          ${mediaHtml}
         `;
         box.appendChild(div);
       });

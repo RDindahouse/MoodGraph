@@ -149,6 +149,7 @@ function getAdminByTelegramId(telegramId) {
     telegramId: row.telegram_id,
     telegramUsername: row.telegram_username,
     linkToken: row.link_token,
+    lastBoardId: row.last_board_id,
   };
 }
 
@@ -412,6 +413,28 @@ function getAllMoods() {
   }));
 }
 
+function setAdminLastBoardId(adminId, boardId) {
+  db.prepare(
+    "UPDATE admins SET last_board_id = ? WHERE id = ?"
+  ).run(boardId, adminId);
+}
+
+function getAdminLastBoardId(adminId) {
+  const row = db.prepare("SELECT last_board_id FROM admins WHERE id = ?").get(adminId);
+  return row ? row.last_board_id : null;
+}
+
+function getAdminLanguage(adminId) {
+  const row = db.prepare("SELECT admin_language FROM admins WHERE id = ?").get(adminId);
+  return row ? (row.admin_language || "en") : "en";
+}
+
+function setAdminLanguage(adminId, language) {
+  db.prepare(
+    "UPDATE admins SET admin_language = ? WHERE id = ?"
+  ).run(language, adminId);
+}
+
 module.exports = {
   getUserByUsername,
   getUserById,
@@ -445,4 +468,8 @@ module.exports = {
   deleteSession,
   addMood,
   getAllMoods,
+  setAdminLastBoardId,
+  getAdminLastBoardId,
+  getAdminLanguage,
+  setAdminLanguage,
 };
