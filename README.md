@@ -2,8 +2,6 @@
 
 MoodGraph is a personal mood tracking application via a Telegram bot. It allows users to log their mood, visualize all entries on a graph, and aggregate data by day, week, or month for better insights. Access to user graphs is invite-based, and each graph can have custom access levels for different users.
 
-This app was originally built for my personal use, since I couldn’t find any similar tool that suited my needs.
-
 ---
 
 ## 🚀 Features
