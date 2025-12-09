@@ -6,390 +6,250 @@
   <title>Admin – Mood</title>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <link rel="stylesheet" href="/styles.css" />
-  <style>
-    body {
-      background: var(--bg);
-      color: var(--text);
-      font-family: system-ui, sans-serif;
-      display: flex;
-      justify-content: center;
-      padding: 30px 10px;
-      margin: 0;
-    }
-
-    .container {
-      max-width: 1100px;
-      width: 100%;
-    }
-
-    h1 {
-      margin-top: 0;
-      margin-bottom: 16px;
-      font-size: 26px;
-    }
-
-    .top-bar {
-      margin-bottom: 24px;
-    }
-
-    .grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
-      gap: 16px;
-    }
-
-    .card {
-      background: var(--card-bg);
-      border-radius: 12px;
-      padding: 16px;
-      box-shadow: 0 10px 25px rgba(15, 23, 42, 0.8);
-      border: 1px solid var(--border-subtle);
-    }
-
-    .card h2 {
-      margin-top: 0;
-      font-size: 18px;
-      margin-bottom: 12px;
-    }
-
-    label {
-      display: block;
-      font-size: 13px;
-      color: #9ca3af;
-      margin-bottom: 4px;
-    }
-
-    input[type="text"],
-    input[type="password"],
-    select {
-      width: 100%;
-      padding: 6px 8px;
-      border-radius: 6px;
-      border: 1px solid var(--border-subtle);
-      background: var(--card-bg);
-      color: var(--text);
-      font-size: 14px;
-      box-sizing: border-box;
-    }
-
-    input:focus,
-    select:focus {
-      outline: none;
-      border-color: var(--accent);
-    }
-
-    .field {
-      margin-bottom: 10px;
-    }
-
-    .btn {
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      border-radius: 999px;
-      padding: 6px 12px;
-      border: none;
-      cursor: pointer;
-      font-size: 13px;
-      font-weight: 500;
-      background: #1f2937;
-      color: var(--text);
-      transition: background 0.15s ease, transform 0.1s ease;
-    }
-
-    .btn.primary {
-      background: var(--accent);
-      color: #fff;
-    }
-
-    .btn.danger {
-      background: #b91c1c;
-      color: #fff;
-    }
-
-    .btn:disabled {
-      opacity: 0.4;
-      cursor: default;
-    }
-
-    .btn:hover:not(:disabled) {
-      transform: translateY(-1px);
-      background: #4b5563;
-    }
-
-    .btn.primary:hover:not(:disabled) {
-      background: #2563eb;
-    }
-
-    .btn.danger:hover:not(:disabled) {
-      background: #dc2626;
-    }
-
-    .status {
-      font-size: 13px;
-      margin-top: 6px;
-      color: #9ca3af;
-      word-break: break-all;
-    }
-
-    code {
-      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas,
-        "Liberation Mono", "Courier New", monospace;
-      font-size: 12px;
-      background: var(--card-bg);
-      padding: 2px 4px;
-      border-radius: 4px;
-      border: 1px solid var(--border-subtle);
-    }
-
-    table {
-      width: 100%;
-      border-collapse: collapse;
-      font-size: 13px;
-    }
-
-    th,
-    td {
-      border-bottom: 1px solid var(--border-subtle);
-      padding: 4px 6px;
-      text-align: left;
-    }
-
-    th {
-      font-weight: 500;
-      color: #9ca3af;
-    }
-
-    tr:last-child td {
-      border-bottom: none;
-    }
-
-    .small {
-      font-size: 12px;
-      color: #9ca3af;
-    }
-
-    .mt-8 {
-      margin-top: 8px;
-    }
-
-    .mt-12 {
-      margin-top: 12px;
-    }
-
-    .inline {
-      display: inline-block;
-    }
-
-    .pill {
-      display: inline-flex;
-      align-items: center;
-      padding: 2px 6px;
-      background: #111827;
-      border-radius: 999px;
-      font-size: 11px;
-      border: 1px solid #1f2937;
-    }
-
-    .pill.green {
-      border-color: #16a34a;
-      color: #bbf7d0;
-    }
-
-    .pill.red {
-      border-color: #b91c1c;
-      color: #fecaca;
-    }
-
-    .pill.gray {
-      border-color: #4b5563;
-      color: #e5e7eb;
-    }
-  </style>
 </head>
 
-<body>
+<body class="admin-page">
   <div class="container">
     <!-- top bar with navigation and global theme toggle -->
     <div class="top-bar">
-      <h1>Admin Panel</h1>
+      <h1 data-i18n="adminPanelTitle">Admin Panel</h1>
       <div class="top-bar-right">
-        <a href="/" class="theme-toggle">Home</a>
-        <div class="auth-user" id="admin-auth-status" style="display:none; margin: 0 12px;"></div>
-        <button id="theme-toggle" class="theme-toggle" type="button">
-          <img id="theme-icon" src="/icons/sun-light.svg" width="20" height="20" />
-        </button>
-      </div>
-    </div>
-
-    <div class="card" style="margin-bottom:16px;">
-      <div class="small">
-        Login: basic-auth. Default admin: <code>admin / admin</code>.
-      </div>
-      <div class="mt-8 small">
-        Current admin: <span id="admin-username">Loading…</span><br />
-        Telegram status: <span id="admin-tg-status">Loading…</span>
-      </div>
-
-      <div class="mt-16">
-        <h3 style="margin-bottom: 12px;">Bot Language (personal)</h3>
-        <div class="field">
-          <label for="admin-language">Language for your bot messages:</label>
-          <select id="admin-language">
+        <a href="/" class="theme-toggle" data-i18n="adminHome">Home</a>
+        <div class="auth-user" id="admin-auth-status"></div>
+        <div class="language-selector">
+          <select id="language-select" title="Language">
             <option value="en">English</option>
-            <option value="ru">Russian</option>
+            <option value="ru">Русский</option>
           </select>
         </div>
-        <button class="btn primary" id="btn-save-admin-language">
-          Save Language
+        <button id="theme-toggle" class="theme-toggle" type="button">
+          <img id="theme-icon" src="/icons/dark_theme.svg" width="20" height="20" />
         </button>
-        <div class="status" id="status-admin-language" style="margin-top: 8px;"></div>
       </div>
     </div>
 
-    <div class="grid" style="margin-top:16px;">
+    <div class="card mb-16">
+      <div class="mt-8 small">
+        <span data-i18n="currentAdminLabel">Current admin:</span>
+        <span id="admin-username">Loading...</span><br />
+        <span data-i18n="telegramStatusLabel">Telegram status:</span>
+        <span id="admin-tg-status">Loading...</span>
+      </div>
+    </div>
+
+    <div class="grid mt-16">
       <div class="card">
-        <h2>Bot and Site Settings</h2>
+        <h2 data-i18n="botSiteSettings">Bot and Site Settings</h2>
 
         <div class="field">
-          <label for="bot-token">Telegram Bot Token</label>
+          <label for="bot-token" data-i18n="botTokenLabel">Telegram Bot Token</label>
           <input id="bot-token" type="text" placeholder="123456:ABC-DEF..." />
         </div>
 
         <div class="field">
-          <label for="site-base-url">Site Address (for invites)</label>
+          <label for="site-base-url" data-i18n="siteAddressLabel">Site Address (for invites)</label>
           <input id="site-base-url" type="text" placeholder="https://example.com" />
-          <div class="small">
-            Used to form full invite link.
-            If left empty, <code>window.location.origin</code> will be used.
+          <div class="small" data-i18n="siteAddressHint">
+            Used to form full invite link. If left empty, window.location.origin will be used.
           </div>
         </div>
 
-        <div class="field">
-          <label for="bot-language">Bot Language</label>
-          <select id="bot-language">
-            <option value="en">English</option>
-            <option value="ru">Russian</option>
-          </select>
-          <div class="small">Changes bot messages globally.</div>
-        </div>
-
-        <button class="btn primary" id="btn-save-bot-token">
+        <button class="btn primary mb-16" id="btn-save-bot-token" data-i18n="saveSettings">
           Save Settings
         </button>
 
-        <div class="status" id="status-bot">Loading...</div>
-        <div class="small mt-8">
-          After changing bot token, restart the bot:
-          <code>node bot.js</code>
+        <div class="status" id="status-bot" data-i18n="loading">Loading...</div>
+
+        <div class="field mt-16">
+          <h3 class="mb-12" data-i18n="botLanguageTitle">Bot Language (personal)</h3>
+          <label for="admin-language" data-i18n="botLanguageLabel">Language for your bot messages:</label>
+          <select id="admin-language"></select>
         </div>
+        <button class="btn primary" id="btn-save-admin-language" data-i18n="saveLanguage">
+          Save Language
+        </button>
+        <div class="status mt-8" id="status-admin-language"></div>
       </div>
 
       <div class="card">
-        <h2>Telegram Linking</h2>
-        <button class="btn primary mt-8" id="btn-generate-link-token">
+        <h2 data-i18n="telegramLinking">Telegram Linking</h2>
+        <button class="btn primary mt-8" id="btn-generate-link-token" data-i18n="generateLinkToken">
           Generate Link Token
         </button>
-        <div class="status" id="status-link">
+        <div class="status" id="status-link" data-i18n="linkStatusHint">
           Click button to get link token.
         </div>
       </div>
     </div>
 
-    <div class="grid" style="margin-top:16px;">
+    <div class="grid mt-16">
       <div class="card">
-        <h2>Change Admin Password</h2>
+        <h2 data-i18n="changePasswordTitle">Change Admin Password</h2>
 
         <div class="field">
-          <label for="pwd-old">Current Password</label>
+          <label for="pwd-old" data-i18n="currentPasswordLabel">Current Password</label>
           <input id="pwd-old" type="password" placeholder="Old password" />
         </div>
 
         <div class="field">
-          <label for="pwd-new">New Password</label>
+          <label for="pwd-new" data-i18n="newPasswordLabel">New Password</label>
           <input id="pwd-new" type="password" placeholder="New password" />
         </div>
 
         <div class="field">
-          <label for="pwd-new2">Repeat New Password</label>
+          <label for="pwd-new2" data-i18n="repeatPasswordLabel">Repeat New Password</label>
           <input id="pwd-new2" type="password" placeholder="Repeat new" />
         </div>
 
-        <button class="btn primary" id="btn-change-password">
+        <button class="btn primary" id="btn-change-password" data-i18n="changePasswordBtn">
           Change Password
         </button>
 
-        <div class="status mt-8" id="status-password">
+        <div class="status mt-8" id="status-password" data-i18n="passwordStatusHint">
           Enter current and new password.
         </div>
       </div>
     </div>
 
-    <div class="grid" style="margin-top:16px;">
+    <div class="grid mt-16">
       <div class="card">
-        <h2>My Charts</h2>
+        <h2 data-i18n="myChartsTitle">My Charts</h2>
 
         <div class="field">
-          <label for="board-title">New Chart Title</label>
-          <input id="board-title" type="text" placeholder="E.g.: Daily mood" />
+          <label for="board-title" data-i18n="newChartTitleLabel">New Chart Title</label>
+          <input id="board-title" type="text" placeholder="E.g.: Daily mood" data-i18n="newChartTitlePlaceholder" />
         </div>
 
         <div class="field">
           <label>
             <input type="checkbox" id="board-public" />
-            <span class="small">Public chart (visible to all on site)</span>
+            <span class="small" data-i18n="publicChartLabel">Public chart (visible to all on site)</span>
           </label>
         </div>
 
-        <button class="btn primary" id="btn-create-board">Create Chart</button>
+        <button class="btn primary" id="btn-create-board" data-i18n="createChartBtn">Create Chart</button>
 
-        <div class="status mt-8" id="boards-status">Loading...</div>
+        <div class="status mt-8" id="boards-status" data-i18n="loading">Loading...</div>
         <div class="mt-8" id="boards-list"></div>
       </div>
 
       <div class="card">
-        <h2>Invites</h2>
+        <h2 data-i18n="invitesTitle">Invites</h2>
 
         <div class="field">
-          <label for="invite-board">Chart to give access to</label>
+          <label for="invite-board" data-i18n="inviteBoardLabel">Chart to give access to</label>
           <select id="invite-board"></select>
         </div>
 
         <div class="field">
-          <label for="invite-role">Who to invite</label>
+          <label for="invite-role" data-i18n="inviteRoleLabel">Who to invite</label>
           <select id="invite-role">
-            <option value="user">Regular user</option>
-            <option value="admin">Administrator</option>
+            <option value="user" data-i18n="inviteRoleUser">Regular user</option>
+            <option value="admin" data-i18n="inviteRoleAdmin">Administrator</option>
           </select>
         </div>
 
-        <button class="btn primary" id="btn-create-invite">Create Invite</button>
+        <button class="btn primary" id="btn-create-invite" data-i18n="createInviteBtn">Create Invite</button>
 
-        <div class="status mt-8" id="invite-output">
+        <div class="status mt-8" id="invite-output" data-i18n="inviteStatusHint">
           Select chart and role first.
         </div>
-        <div class="small mt-8">
-          Invite is one-time: after registration via token it becomes
-          invalid.
+        <div class="small mt-8" data-i18n="inviteOneTimeNote">
+          Invite is one-time: after registration via token it becomes invalid.
         </div>
       </div>
     </div>
 
-    <div class="card" style="margin-top:16px;">
-      <h2>Users and Chart Access</h2>
-      <div class="small">
-        Here you can view which users have access to which charts,
-        and enable/disable access.
+    <div class="card mt-16">
+      <h2 data-i18n="usersAccessTitle">Users and Chart Access</h2>
+      <div class="small" data-i18n="usersAccessHint">
+        Here you can view which users have access to which charts, and enable/disable access.
       </div>
-      <div class="mt-8" id="users-access-output">Loading...</div>
+      <div class="mt-8" id="users-access-output" data-i18n="loading">Loading...</div>
     </div>
   </div>
 
-  <!-- shared theme script -->
+  <!-- shared scripts -->
+  <script src="/i18n.js"></script>
   <script src="/theme.js"></script>
 
   <script>
     let siteBaseUrl = "";
+    let currentAdminId = null;
+    let currentAdminUsername = "";
+    let currentAdminTelegramId = null;
+
+    const languageLabel = (code) => {
+      if (typeof getLanguageLabel === "function") {
+        return getLanguageLabel(code);
+      }
+      const dict =
+        (typeof translations !== "undefined" && translations[code]) || {};
+      return dict.languageName || String(code || "").toUpperCase();
+    };
+
+    const availableLanguages = () => {
+      if (typeof getAvailableLanguages === "function") {
+        return getAvailableLanguages();
+      }
+      if (typeof translations !== "undefined") {
+        return Object.keys(translations);
+      }
+      return [];
+    };
+
+    function populateLanguageSelect(selectEl) {
+      if (!selectEl) return;
+      selectEl.innerHTML = "";
+      availableLanguages().forEach((lang) => {
+        const opt = document.createElement("option");
+        opt.value = lang;
+        opt.textContent = languageLabel(lang);
+        selectEl.appendChild(opt);
+      });
+    }
+
+    function ensureLanguageOption(selectEl, lang) {
+      if (!selectEl || !lang) return;
+      const exists = Array.from(selectEl.options || []).some(
+        (opt) => opt.value === lang
+      );
+      if (!exists) {
+        const opt = document.createElement("option");
+        opt.value = lang;
+        opt.textContent = languageLabel(lang);
+        selectEl.appendChild(opt);
+      }
+    }
+
+    function boardOwnedByCurrent(b) {
+      if (!b) return false;
+      // match by username
+      if (
+        currentAdminUsername &&
+        (b.ownerAdminUsername === currentAdminUsername ||
+          b.owner_admin_username === currentAdminUsername ||
+          b.ownerUsername === currentAdminUsername ||
+          b.owner_username === currentAdminUsername)
+      ) {
+        return true;
+      }
+      // match by telegram id
+      if (
+        currentAdminTelegramId &&
+        (String(b.ownerTelegramId || "") === String(currentAdminTelegramId) ||
+          String(b.owner_telegram_id || "") === String(currentAdminTelegramId))
+      ) {
+        return true;
+      }
+      // fallback: allow legacy boards without owner info
+      return (
+        !b.ownerAdminUsername &&
+        !b.owner_admin_username &&
+        !b.ownerTelegramId &&
+        !b.owner_telegram_id
+      );
+    }
 
     async function apiJson(url, method = "GET", body) {
       const opts = { method, headers: {} };
@@ -420,22 +280,32 @@
         const data = await apiJson("/api/admin/me");
         const admin = data.admin;
         if (!admin) {
-          nameEl.textContent = "unknown";
-          tgEl.textContent = "no data";
+          nameEl.textContent = t("unknown");
+          tgEl.textContent = t("unknown");
           if (authStatus) authStatus.style.display = "none";
           return;
         }
 
         nameEl.textContent = admin.username || "(no name)";
+        currentAdminId = admin.id || admin._id || null;
+        currentAdminUsername = admin.username || "";
+        currentAdminTelegramId = admin.telegramId || null;
 
         // Load admin language
         if (langSelect && admin.language) {
+          ensureLanguageOption(langSelect, admin.language);
           langSelect.value = admin.language;
         }
 
         if (authStatus) {
           authStatus.style.display = "block";
-          authStatus.innerHTML = 'Signed in as <b>' + (admin.username || "(no name)") + '</b><button type="button" id="admin-logout-btn">Sign out</button>';
+          authStatus.innerHTML =
+            t("signedInAs") +
+            ' <b>' +
+            (admin.username || "(no name)") +
+            '</b><button type="button" id="admin-logout-btn">' +
+            t("logout") +
+            "</button>";
           const logoutBtn = document.getElementById("admin-logout-btn");
           if (logoutBtn) {
             logoutBtn.onclick = async () => {
@@ -451,19 +321,23 @@
 
         if (admin.telegramId) {
           tgEl.innerHTML =
-            '<span class="pill green">Linked</span> ' +
+            '<span class="pill green">' +
+            t("linked") +
+            "</span> " +
             (admin.telegramUsername
               ? "(@" + admin.telegramUsername + ", id " + admin.telegramId + ")"
               : "(id " + admin.telegramId + ")");
         } else {
           tgEl.innerHTML =
-            '<span class="pill gray">Not linked</span> ' +
-            "Generate token and send it to bot via /link.";
+            '<span class="pill gray">' +
+            t("notLinked") +
+            "</span> " +
+            t("linkInstruction");
         }
       } catch (e) {
         console.error(e);
-        nameEl.textContent = "Error";
-        tgEl.textContent = "Error: " + e.message;
+        nameEl.textContent = t("statusErrorPrefix");
+        tgEl.textContent = t("statusErrorPrefix") + " " + e.message;
         if (authStatus) authStatus.style.display = "none";
       }
     }
@@ -472,31 +346,27 @@
       const status = document.getElementById("status-bot");
       const tokenInput = document.getElementById("bot-token");
       const siteInput = document.getElementById("site-base-url");
-      const langInput = document.getElementById("bot-language");
 
-      status.textContent = "Loading...";
+      status.textContent = t("loadingGeneric");
       try {
         const cfg = await apiJson("/api/admin/config");
         if (cfg.botToken) {
           tokenInput.value = "";
-          status.textContent = "Bot token is set.";
+          status.textContent = t("boardCreated");
           status.style.color = "lightgreen";
         } else {
-          status.textContent = "Bot token not set yet.";
+          status.textContent = t("boardsEmpty");
           status.style.color = "#9ca3af";
         }
 
         siteBaseUrl = cfg.siteBaseUrl || "";
         siteInput.value = siteBaseUrl;
 
-        const botLang = cfg.botLanguage || "en";
-        langInput.value = botLang;
-
         if (!siteBaseUrl) {
           siteBaseUrl = window.location.origin;
         }
       } catch (e) {
-        status.textContent = "Error: " + e.message;
+        status.textContent = t("statusErrorPrefix") + " " + e.message;
         status.style.color = "red";
       }
     }
@@ -504,23 +374,20 @@
     async function saveBotToken() {
       const tokenInput = document.getElementById("bot-token");
       const siteInput = document.getElementById("site-base-url");
-      const langInput = document.getElementById("bot-language");
       const status = document.getElementById("status-bot");
 
       const token = tokenInput.value.trim();
       const site = siteInput.value.trim();
-      const lang = langInput.value.trim();
 
-      status.textContent = "Saving...";
+      status.textContent = t("saving");
       status.style.color = "#9ca3af";
 
       try {
         await apiJson("/api/admin/config", "POST", {
           botToken: token || undefined,
           siteBaseUrl: site || "",
-          botLanguage: lang || "en",
         });
-        status.textContent = "Settings saved.";
+        status.textContent = t("saveSettings");
         status.style.color = "lightgreen";
 
         if (site) {
@@ -531,22 +398,22 @@
 
         tokenInput.value = "";
       } catch (e) {
-        status.textContent = "Error: " + e.message;
+        status.textContent = t("statusErrorPrefix") + " " + e.message;
         status.style.color = "red";
       }
     }
 
     async function generateLinkToken() {
       const status = document.getElementById("status-link");
-      status.textContent = "Запрос токена...";
+      status.textContent = t("generatingToken");
       status.style.color = "#9ca3af";
       try {
         const data = await apiJson("/api/admin/link-token", "POST", {});
         // show token with copy button
         status.innerHTML =
-          "Токен привязки: <code id=\"link-token\">" + data.token + "</code>" +
-          "<br>Отправь боту: <code id=\"link-full\">/link " + data.token + "</code>" +
-          "<br><button class=\"btn\" id=\"btn-copy-link\">Copy</button>";
+          t("tokenLabel") + ' <code id="link-token">' + data.token + "</code>" +
+          "<br>" + t("fullCommandLabel") + ' <code id="link-full">/link ' + data.token + "</code>" +
+          '<br><button class="btn primary" id="btn-copy-link">' + t("copy") + "</button>";
 
         status.style.color = "lightgreen";
 
@@ -558,8 +425,8 @@
             try {
               const fullCmd = document.getElementById("link-full").textContent;
               await navigator.clipboard.writeText(fullCmd);
-              copyBtn.textContent = "Copied";
-              setTimeout(() => (copyBtn.textContent = "Copy"), 1500);
+              copyBtn.textContent = t("copied");
+              setTimeout(() => (copyBtn.textContent = t("copy")), 1500);
             } catch (e) {
               // fallback: select text
               const range = document.createRange();
@@ -589,7 +456,7 @@
 
       try {
         const data = await apiJson("/api/admin/boards");
-        const boards = data.boards || [];
+        const boards = (data.boards || []).filter(boardOwnedByCurrent);
         cachedBoards = boards;
 
         if (!boards.length) {
@@ -747,14 +614,21 @@
 
     async function loadUsersAccess() {
       const out = document.getElementById("users-access-output");
-      out.textContent = "Загрузка...";
+      out.textContent = "Loading...";
       try {
         const data = await apiJson("/api/admin/users");
         const users = data.users || [];
         const boards = data.boards || [];
 
+        const ownBoards = boards.filter(boardOwnedByCurrent);
+
         if (!users.length) {
-          out.textContent = "Пока нет пользователей.";
+          out.textContent = "No users yet.";
+          return;
+        }
+
+        if (!ownBoards.length) {
+          out.textContent = "No boards available to manage.";
           return;
         }
 
@@ -763,8 +637,8 @@
         const headRow = document.createElement("tr");
 
         headRow.innerHTML =
-          "<th>Пользователь</th><th>Роль</th>" +
-          boards.map((b) => `<th>${b.title}</th>`).join("");
+          "<th>User</th><th>Role</th>" +
+          ownBoards.map((b) => `<th>${b.title}</th>`).join("");
         thead.appendChild(headRow);
         table.appendChild(thead);
 
@@ -782,7 +656,7 @@
             (u.role || "user") === "admin" ? "admin" : "user";
           tr.appendChild(roleTd);
 
-          boards.forEach((b) => {
+          ownBoards.forEach((b) => {
             const td = document.createElement("td");
             const checkbox = document.createElement("input");
             checkbox.type = "checkbox";
@@ -805,7 +679,7 @@
                   { boards: arrBoards }
                 );
               } catch (err) {
-                alert("Ошибка обновления: " + err.message);
+                alert("?????? ????????? ???????: " + err.message);
               }
             });
 
@@ -820,7 +694,7 @@
         out.innerHTML = "";
         out.appendChild(table);
       } catch (e) {
-        out.textContent = "Ошибка: " + e.message;
+        out.textContent = "Error: " + e.message;
       }
     }
 
@@ -892,6 +766,30 @@
 
     document.addEventListener("DOMContentLoaded", () => {
       initTheme();
+      if (typeof updateAllTranslations === "function") {
+        updateAllTranslations();
+      }
+
+      const uiLangSelect = document.getElementById("language-select");
+      const adminLangSelect = document.getElementById("admin-language");
+      populateLanguageSelect(adminLangSelect);
+
+      if (uiLangSelect) {
+        uiLangSelect.value =
+          (typeof getCurrentLanguage === "function" && getCurrentLanguage()) ||
+          (typeof currentLanguage !== "undefined" ? currentLanguage : "en");
+        uiLangSelect.addEventListener("change", (e) => {
+          setLanguage(e.target.value);
+          updateAllTranslations();
+        });
+        window.addEventListener("storage", (event) => {
+          if (event.key === "language" && event.newValue && uiLangSelect) {
+            uiLangSelect.value = event.newValue;
+            updateAllTranslations();
+          }
+        });
+      }
+
       document
         .getElementById("btn-save-bot-token")
         .addEventListener("click", saveBotToken);
@@ -913,10 +811,12 @@
         pwdBtn.addEventListener("click", changeAdminPassword);
       }
 
-      loadAdminInfo();
-      loadBotConfig();
-      loadBoards();
-      loadUsersAccess();
+      (async () => {
+        await loadAdminInfo();
+        await loadBotConfig();
+        await loadBoards();
+        await loadUsersAccess();
+      })();
     });
   </script>
 </body>

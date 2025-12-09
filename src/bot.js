@@ -3,26 +3,10 @@ const fetch = require("node-fetch");
 const fs = require("fs");
 const path = require("path");
 const { json } = require("body-parser");
+const { translate } = require("../web/i18n");
 
 const DATA_DIR = process.env.DATA_DIR || path.join(__dirname, "data");
 const CONFIG_FILE = path.join(DATA_DIR, "config.json");
-
-const botMessages = {
-  en: {
-    start: "Welcome to Mood Graph!\n\n/m — Quick mood\n/mood — Mood with media\n/board — Select board\n/link <token> — Link Telegram",
-    moodStart: "Enter mood value (-100 to 100) and optional comment.\nFormat: <value> [comment]",
-    selectBoard: "Select a board:",
-    noBoards: "You don't have any boards yet.",
-    error: "Error: {message}",
-  },
-  ru: {
-    start: "Добро пожаловать в Mood Graph!\n\n/m — Быстрое настроение\n/mood — Настроение с медиа\n/board — Выбрать график\n/link <токен> — Привязать Telegram",
-    moodStart: "Введи значение настроения (-100 до 100) и опционально комментарий.\nФормат: <число> [комментарий]",
-    selectBoard: "Выбери график:",
-    noBoards: "У тебя ещё нет графиков.",
-    error: "Ошибка: {message}",
-  }
-};
 
 function readConfig() {
   try {
@@ -47,9 +31,12 @@ async function fetchBotLanguage() {
 let currentBotLanguage = "en";
 
 async function getBotMessage(key, language = "en", params = {}) {
-  const msg = botMessages[language]?.[key] || botMessages.en[key] || key;
-  return msg.replace(/{(\w+)}/g, (_, k) => params[k] || "");
+  const base = translate(language, key);
+  return base.replace(/{(\w+)}/g, (_, k) =>
+    (params[k] !== undefined ? params[k] : "")
+  );
 }
+
 
 async function fetchBotMe(telegramId) {
   try {
@@ -112,34 +99,23 @@ async function tryInitBot() {
     const chatId = msg.chat.id;
     const me = await fetchBotMe(msg.from.id);
     const language = me?.admin?.language || "en";
-    
-    const text = language === "ru"
-      ? "Добро пожаловать в Mood Graph!\n\n" +
-        "🎯 /m — Быстрое настроение\n" +
-        "🎯 /mood — Настроение с медиа\n" +
-        "📊 /board — Выбрать график\n" +
-        "🔗 /link <токен> — Привязать Telegram\n\n" +
-        "Формат: <число> [комментарий]"
-      : "Welcome to Mood Graph!\n\n" +
-        "🎯 /m — Quick mood\n" +
-        "🎯 /mood — Mood with media\n" +
-        "📊 /board — Select board\n" +
-        "🔗 /link <token> — Link Telegram\n\n" +
-        "Format: <value> [comment]";
-    
+
+    const text = await getBotMessage("botStart", language);
     bot.sendMessage(chatId, text);
   });
+
 
   // ==== /link <token> ====
   bot.onText(/\/link\s+(.+)/, async (msg, match) => {
     const chatId = msg.chat.id;
     const token = (match[1] || "").trim();
 
+    const me = await fetchBotMe(msg.from.id);
+    const language = me?.admin?.language || currentBotLanguage || "en";
+
     if (!token) {
-      return bot.sendMessage(
-        chatId,
-        "Использование: /link <токен>, который ты получил в админке."
-      );
+      const text = await getBotMessage("botLinkUsage", language);
+      return bot.sendMessage(chatId, text);
     }
 
     try {
@@ -155,67 +131,67 @@ async function tryInitBot() {
 
       const json = await res.json();
       if (!res.ok || !json.ok) {
-        const msgErr = json.error?.message || "ошибка";
-        return bot.sendMessage(chatId, "Не удалось привязать: " + msgErr);
+        const msgErr = json.error?.message || "error";
+        const text = await getBotMessage("botLinkFailed", language, {
+          message: msgErr,
+        });
+        return bot.sendMessage(chatId, text);
       }
 
-      bot.sendMessage(
-        chatId,
-        "Привязка выполнена ✅\n" +
-          "Админ: " +
-          json.admin.username +
-          "\nTelegram ID: " +
-          json.admin.telegramId
-      );
+      const text = await getBotMessage("botLinkSuccess", language, {
+        username: json.admin.username,
+        telegramId: json.admin.telegramId,
+      });
+      bot.sendMessage(chatId, text);
     } catch (e) {
       console.error(e);
-      bot.sendMessage(chatId, "Ошибка при привязке ");
+      const text = await getBotMessage("botLinkUnknownError", language);
+      bot.sendMessage(chatId, text);
     }
   });
+
 
   // ==== /m  (quick save) ====
   bot.onText(/\/m\b/, async (msg) => {
     const chatId = msg.chat.id;
 
     const me = await fetchBotMe(msg.from.id);
+    const language = me?.admin?.language || currentBotLanguage || "en";
+
     if (!me || !me.admin) {
-      return bot.sendMessage(
-        chatId,
-        "Ты не привязан как админ.\n" +
-          "Если это твой бот, зайди в веб-админку, сгенерируй токен " +
-          "привязки и отправь команду:\n/link <токен>"
-      );
+      const text = await getBotMessage("botNotAdminWithInstructions", language);
+      return bot.sendMessage(chatId, text);
     }
 
     try {
       const boards = Array.isArray(me.boards) ? me.boards : [];
-      const language = me.admin?.language || "en";
 
       if (!boards.length) {
+        let msgText = await getBotMessage("botNoBoards", language);
+        msgText += "\n" + await getBotMessage("botBoardsCreateInAdmin", language);
+
         const site = (me.config && me.config.siteBaseUrl) || null;
         const adminUrl = site ? `${site.replace(/\/$/, "")}/admin` : null;
-        const msgText = language === "ru"
-          ? "У тебя ещё нет графиков.\n" +
-            "Зайди в веб-админку и создай хотя бы один график.\n" +
-            (adminUrl ? `Админ-панель: ${adminUrl}` : "Открой страницу /admin на сайте.")
-          : "You don't have any boards yet.\n" +
-            "Go to the web admin panel and create a board.\n" +
-            (adminUrl ? `Admin panel: ${adminUrl}` : "Open /admin page on the site.");
+
+        if (adminUrl) {
+          msgText += "\n" + await getBotMessage("botAdminPanelUrl", language, {
+            url: adminUrl,
+          });
+        } else {
+          msgText += "\n" + await getBotMessage("botAdminPanelOpenAdminPath", language);
+        }
+
         return bot.sendMessage(chatId, msgText);
       }
 
-      // Получаем последнюю доску
       let lastBoardId = me.admin ? me.admin.lastBoardId : null;
       let activeBoardId = null;
 
       if (lastBoardId && boards.some(b => b.id === lastBoardId)) {
         activeBoardId = lastBoardId;
       } else {
-        // Используем первую доску если последняя не установлена или удалена
         activeBoardId = boards[0].id;
       }
-
-      const activeBoard = boards.find(b => b.id === activeBoardId);
 
       // If the user provided arguments inline with the command, try to parse and save immediately.
       const rawText = (msg.text || "").replace(/^\/m(@\S+)?\s*/i, "").trim();
@@ -225,9 +201,7 @@ async function tryInitBot() {
           const moodValue = Number(m[1].replace(',', '.'));
           const title = (m[2] || "").trim();
           if (isNaN(moodValue) || moodValue < -100 || moodValue > 100) {
-            const badMsg = language === "ru"
-              ? "Число должно быть от -100 до 100."
-              : "Value must be between -100 and 100.";
+            const badMsg = await getBotMessage("botValueOutOfRange", language);
             return bot.sendMessage(chatId, badMsg);
           }
 
@@ -243,46 +217,51 @@ async function tryInitBot() {
               extraMeta,
               activeBoardId || "default"
             );
-            const okMsg = language === "ru" ? "Записал настроение ✅" : "Mood recorded ✅";
+            const okMsg = await getBotMessage("botSavedOk", language);
             return bot.sendMessage(chatId, okMsg);
           } catch (err) {
             console.error(err);
-            const errMsg = language === "ru" ? "Ошибка при сохранении" : "Error saving mood";
+            const errMsg = await getBotMessage("botSavedError", language);
             return bot.sendMessage(chatId, errMsg);
           }
         }
       }
 
-      // No inline args — fall back to interactive flow prompting for number+topic
+      // No inline args – fall back to interactive flow prompting for number+topic
+      const activeBoard =
+        boards.find((b) => b.id === activeBoardId) || boards[0];
+
       userStates[chatId] = {
         step: "waitingValue",
         boardId: activeBoardId,
         language,
       };
 
-      const msgText = language === "ru"
-        ? `Запишу в график: "${activeBoard.title}".\n` +
-          "Отправь число от -100 до 100 и тему (опционально).\n" +
-          "Формат: <число> [тема]"
-        : `Writing to board: "${activeBoard.title}".\n` +
-          "Send a number from -100 to 100 and optional topic.\n" +
-          "Format: <value> [topic]";
+      const msgText = await getBotMessage("botQuickPrompt", language, {
+        boardTitle: activeBoard.title,
+      });
 
       bot.sendMessage(chatId, msgText);
     } catch (e) {
       console.error(e);
+
+      let msgText = await getBotMessage("botBoardsFetchError", language);
+      msgText += "\n" + await getBotMessage("botBoardsCreateInAdmin", language);
+
       const site = (me && me.config && me.config.siteBaseUrl) || null;
       const adminUrl = site ? `${site.replace(/\/$/, "")}/admin` : null;
-      const language = me?.admin?.language || "en";
-      const msgText = language === "ru"
-        ? "Не удалось получить список графиков.\n" +
-          "Зайди в веб-админку и проверь настройки или создай график.\n" +
-          (adminUrl ? `Админ-панель: ${adminUrl}` : "Открой страницу /admin на сайте.")
-        : "Failed to get boards list.\n" +
-          "Go to the web admin panel and check settings or create a board.\n" +
-          (adminUrl ? `Admin panel: ${adminUrl}` : "Open /admin page on the site.");
+
+      if (adminUrl) {
+        msgText += "\n" + await getBotMessage("botAdminPanelUrl", language, {
+          url: adminUrl,
+        });
+      } else {
+        msgText += "\n" + await getBotMessage("botAdminPanelOpenAdminPath", language);
+      }
+
       return bot.sendMessage(chatId, msgText);
     }
+
   });
 
   // ==== /board - выбор активной доски ====
@@ -290,16 +269,18 @@ async function tryInitBot() {
     const chatId = msg.chat.id;
 
     const me = await fetchBotMe(msg.from.id);
+    const language = me?.admin?.language || currentBotLanguage || "en";
+    
     if (!me || !me.admin) {
-      return bot.sendMessage(chatId, "Ты не привязан как админ.");
+      const text = await getBotMessage("botNotAdminShort", language);
+      return bot.sendMessage(chatId, text);
     }
 
     try {
       const boards = Array.isArray(me.boards) ? me.boards : [];
-      const language = me.admin?.language || "en";
 
       if (!boards.length) {
-        const msgText = language === "ru" ? "У тебя нет графиков." : "You don't have any boards.";
+        const msgText = await getBotMessage("botNoBoards", language);
         return bot.sendMessage(chatId, msgText);
       }
 
@@ -315,17 +296,13 @@ async function tryInitBot() {
         ]),
       };
 
-      const msgText = language === "ru"
-        ? "Выбери график, который хочешь использовать по умолчанию:"
-        : "Select a board to use by default:";
-
+      const msgText = await getBotMessage("botSelectBoard", language);
       bot.sendMessage(chatId, msgText, {
         reply_markup: keyboard,
       });
     } catch (e) {
       console.error(e);
-      const language = me?.admin?.language || "en";
-      const msgText = language === "ru" ? "Ошибка при получении списка графиков" : "Error getting boards list";
+      const msgText = await getBotMessage("botBoardsListError", language);
       bot.sendMessage(chatId, msgText);
     }
   });
@@ -335,20 +312,29 @@ async function tryInitBot() {
     const chatId = msg.chat.id;
 
     const me = await fetchBotMe(msg.from.id);
+    const language = me?.admin?.language || currentBotLanguage || "en";
+    
     if (!me || !me.admin) {
-      return bot.sendMessage(chatId, "Ты не привязан как админ.");
+      const text = await getBotMessage("botNotAdminShort", language);
+      return bot.sendMessage(chatId, text);
     }
 
     try {
       const boards = Array.isArray(me.boards) ? me.boards : [];
-      const language = me.admin?.language || "en";
 
       if (!boards.length) {
+        let msgText = await getBotMessage("botNoBoards", language);
+        msgText += "\n" + await getBotMessage("botBoardsCreateInAdmin", language);
+        
         const site = (me.config && me.config.siteBaseUrl) || null;
         const adminUrl = site ? `${site.replace(/\/$/, "")}/admin` : null;
-        const msgText = language === "ru"
-          ? "У тебя ещё нет графиков. Создай хотя бы один в админ-панели."
-          : "You don't have any boards yet. Create one in the admin panel.";
+        
+        if (adminUrl) {
+          msgText += "\n" + await getBotMessage("botAdminPanelUrl", language, {
+            url: adminUrl,
+          });
+        }
+        
         return bot.sendMessage(chatId, msgText);
       }
 
@@ -368,9 +354,7 @@ async function tryInitBot() {
           const moodValue = Number(m[1].replace(',', '.'));
           const title = (m[2] || "").trim();
           if (isNaN(moodValue) || moodValue < -100 || moodValue > 100) {
-            const badMsg = language === "ru"
-              ? "Число должно быть от -100 до 100."
-              : "Value must be between -100 and 100.";
+            const badMsg = await getBotMessage("botValueOutOfRange", language);
             return bot.sendMessage(chatId, badMsg);
           }
 
@@ -384,15 +368,17 @@ async function tryInitBot() {
             extraMeta: {},
           };
 
-          const prompt = language === "ru"
-            ? `Сохранил: ${moodValue} ${title ? `"${title}"` : ""}.\nТеперь отправь комментарий или медиа (или /skip для пропуска).`
-            : `Saved: ${moodValue} ${title ? `"${title}"` : ""}.\nNow send a comment or media (or /skip to skip).`;
+          const titlePart = title ? ` "${title}"` : "";
+          const prompt = await getBotMessage("botSavedAskCommentOrMedia", language, {
+            value: moodValue,
+            titlePart,
+          });
 
           return bot.sendMessage(chatId, prompt);
         }
       }
 
-      // No inline args — prompt for value+topic first
+      // No inline args – prompt for value+topic first
       userStates[chatId] = {
         step: "waitingValue",
         boardId: activeBoardId,
@@ -400,14 +386,16 @@ async function tryInitBot() {
         allowFollowup: true, // indicates interactive flow continues to waitingNote
       };
 
-      const msgText = language === "ru"
-        ? `Запишу в график: "${boards.find(b=>b.id===activeBoardId).title}".\nОтправь число и тему (формат: <число> [тема])` 
-        : `Writing to board: \"${boards.find(b=>b.id===activeBoardId).title}\".\nSend number and topic (format: <value> [topic])`;
+      const activeBoard = boards.find(b => b.id === activeBoardId);
+      const msgText = await getBotMessage("botQuickPrompt", language, {
+        boardTitle: activeBoard.title,
+      });
 
       bot.sendMessage(chatId, msgText);
     } catch (e) {
       console.error(e);
-      return bot.sendMessage(chatId, "Ошибка при обработке команды /mood");
+      const msgText = await getBotMessage("botMoodCommandError", language);
+      return bot.sendMessage(chatId, msgText);
     }
   });
 
@@ -418,13 +406,14 @@ async function tryInitBot() {
     const language = state?.language || "en";
 
     if (!state) {
-      return bot.sendMessage(chatId, language === "ru" ? "Сейчас нечего пропускать." : "Nothing to skip right now.");
+      const msgText = await getBotMessage("botSkipNothing", language);
+      return bot.sendMessage(chatId, msgText);
     }
 
     // На шаге waitingValue - отмена
     if (state.step === "waitingValue") {
       delete userStates[chatId];
-      const msgText = language === "ru" ? "Отменено." : "Cancelled.";
+      const msgText = await getBotMessage("botCancelled", language);
       return bot.sendMessage(chatId, msgText);
     }
 
@@ -444,20 +433,16 @@ async function tryInitBot() {
         );
 
         delete userStates[chatId];
-        const msgText = language === "ru"
-          ? "Записал настроение ✅"
-          : "Mood recorded ✅";
-        bot.sendMessage(chatId, msgText);
+        const okMsg = await getBotMessage("botSavedOk", language);
+        return bot.sendMessage(chatId, okMsg);
       } catch (err) {
         console.error(err);
-        const msgText = language === "ru"
-          ? "Ошибка при сохранении"
-          : "Error saving mood";
-        bot.sendMessage(chatId, msgText);
+        const errMsg = await getBotMessage("botSavedError", language);
+        return bot.sendMessage(chatId, errMsg);
       }
     } else {
       delete userStates[chatId];
-      const msgText = language === "ru" ? "Отменено" : "Cancelled";
+      const msgText = await getBotMessage("botCancelledShort", language);
       bot.sendMessage(chatId, msgText);
     }
   });
@@ -486,10 +471,10 @@ async function tryInitBot() {
         });
 
         const selectedBoard = state.boards.find(b => b.id === boardId);
-        const msgText = language === "ru"
-          ? `Активная доска: "${selectedBoard.title}"`
-          : `Active board: "${selectedBoard.title}"`;
-        
+        const msgText = await getBotMessage("botActiveBoardSet", language, {
+          boardTitle: selectedBoard.title,
+        });
+
         await bot.editMessageText(msgText, {
           chat_id: chatId,
           message_id: message.message_id,
@@ -497,16 +482,13 @@ async function tryInitBot() {
 
         delete userStates[chatId];
         bot.answerCallbackQuery(query.id);
-        const responseText = language === "ru"
-          ? "Готово! Используй /m для записи настроения." 
-          : "Done! Use /m to log your mood.";
+        
+        const responseText = await getBotMessage("botBoardSetSuccess", language);
         return bot.sendMessage(chatId, responseText);
       } catch (e) {
         console.error(e);
         bot.answerCallbackQuery(query.id);
-        const errorText = language === "ru"
-          ? "Ошибка при сохранении доски"
-          : "Error saving board";
+        const errorText = await getBotMessage("botBoardSetError", language);
         return bot.sendMessage(chatId, errorText);
       }
     }
@@ -534,13 +516,11 @@ async function tryInitBot() {
       if (msg.text) {
         const textTrim = msg.text.trim();
         const parts = textTrim.split(/\s+/, 2);
-        
+
         moodValue = Number(parts[0].replace(",", "."));
 
         if (isNaN(moodValue) || moodValue < -100 || moodValue > 100) {
-          const msgText = language === "ru"
-            ? "Это не похоже на число в диапазоне -100..100."
-            : "This doesn't look like a number in the range -100..100.";
+          const msgText = await getBotMessage("botInvalidValue", language);
           return bot.sendMessage(chatId, msgText);
         }
 
@@ -562,14 +542,12 @@ async function tryInitBot() {
           const captionTrim = msg.caption.trim();
           const parts = captionTrim.split(/\s+/, 2);
           moodValue = Number(parts[0].replace(",", "."));
-          
+
           if (isNaN(moodValue) || moodValue < -100 || moodValue > 100) {
-            const msgText = language === "ru"
-              ? "Подпись к фото должна содержать число от -100 до 100."
-              : "Photo caption must contain a number between -100 and 100.";
+            const msgText = await getBotMessage("botPhotoCaptionInvalid", language);
             return bot.sendMessage(chatId, msgText);
           }
-          
+
           if (parts.length > 1) {
             title = captionTrim.slice(parts[0].length).trim();
           }
@@ -586,14 +564,12 @@ async function tryInitBot() {
           const captionTrim = msg.caption.trim();
           const parts = captionTrim.split(/\s+/, 2);
           moodValue = Number(parts[0].replace(",", "."));
-          
+
           if (isNaN(moodValue) || moodValue < -100 || moodValue > 100) {
-            const msgText = language === "ru"
-              ? "Подпись гифки должна содержать число от -100 до 100."
-              : "GIF caption must contain a number between -100 and 100.";
+            const msgText = await getBotMessage("botGifCaptionInvalid", language);
             return bot.sendMessage(chatId, msgText);
           }
-          
+
           if (parts.length > 1) {
             title = captionTrim.slice(parts[0].length).trim();
           }
@@ -611,14 +587,12 @@ async function tryInitBot() {
           const captionTrim = msg.caption.trim();
           const parts = captionTrim.split(/\s+/, 2);
           moodValue = Number(parts[0].replace(",", "."));
-          
+
           if (isNaN(moodValue) || moodValue < -100 || moodValue > 100) {
-            const msgText = language === "ru"
-              ? "Подпись видео должна содержать число от -100 до 100."
-              : "Video caption must contain a number between -100 and 100.";
+            const msgText = await getBotMessage("botVideoCaptionInvalid", language);
             return bot.sendMessage(chatId, msgText);
           }
-          
+
           if (parts.length > 1) {
             title = captionTrim.slice(parts[0].length).trim();
           }
@@ -626,9 +600,7 @@ async function tryInitBot() {
       }
 
       if (moodValue === null) {
-        const msgText = language === "ru"
-          ? "Отправь число от -100 до 100 и опционально тему."
-          : "Send a number from -100 to 100 and optional topic.";
+        const msgText = await getBotMessage("botValuePrompt", language);
         return bot.sendMessage(chatId, msgText);
       }
 
@@ -642,11 +614,14 @@ async function tryInitBot() {
         extraMeta,
       };
 
-      const msgText = language === "ru"
-        ? `Сохранил: ${moodValue} ${title ? `"${title}"` : ""}.\nТеперь отправь комментарий (или /skip для пропуска).`
-        : `Saved: ${moodValue} ${title ? `"${title}"` : ""}.\nNow send a comment (or /skip to skip).`;
+      const titlePart = title ? ` "${title}"` : "";
+      const msgText = await getBotMessage("botSavedAskComment", language, {
+        value: moodValue,
+        titlePart,
+      });
 
       bot.sendMessage(chatId, msgText);
+
     }
 
     // Шаг 2: Ожидаем комментарий и сохраняем
@@ -737,15 +712,11 @@ async function tryInitBot() {
         );
 
         delete userStates[chatId];
-        const msgText = language === "ru"
-          ? "Записал настроение ✅"
-          : "Mood recorded ✅";
+        const msgText = await getBotMessage("botSavedOk", language);
         bot.sendMessage(chatId, msgText);
       } catch (err) {
         console.error(err);
-        const msgText = language === "ru"
-          ? "Ошибка при сохранении"
-          : "Error saving mood";
+        const msgText = await getBotMessage("botSavedError", language);
         bot.sendMessage(chatId, msgText);
       }
     }

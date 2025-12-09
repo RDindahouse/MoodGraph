@@ -15,8 +15,8 @@
   <div class="container">
     <div class="top-bar">
       <div class="top-bar-right" style="margin-left:auto;">
-        <button id="boards-toggle" class="theme-toggle mobile-only" type="button" style="margin-left:8px;" data-i18n="boardsBtn">
-          Boards
+        <button id="boards-toggle" class="theme-toggle boards-toggle mobile-only" type="button" aria-label="Boards" style="margin-left:8px;">
+          <img src="/icons/menu.svg" width="18" height="18" alt="Boards" />
         </button>
       </div>
     </div>
@@ -26,9 +26,12 @@
     <aside class="left-panel" id="left-panel">
       <div class="left-panel-header">
         <h2 class="left-panel-title">Mood Graph</h2>
-        <button id="pin-btn" class="pin-btn" title="Закрепить панель">
-          <img src="/icons/pin.svg" alt="Pin" />
-        </button>
+        <div class="panel-actions">
+          <button id="panel-close-btn" class="panel-close-btn mobile-only" type="button" aria-label="Close boards panel">X</button>
+          <button id="pin-btn" class="pin-btn" title="Закрепить панель">
+            <img src="/icons/pin.svg" alt="Pin" />
+          </button>
+        </div>
       </div>
       <div class="left-panel-body">
         <div class="filter">
@@ -219,6 +222,16 @@
       return "?boards=" + encodeURIComponent((selectedBoardIds || []).join(","));
     }
 
+    function getAuthorName(meta, fallbackId) {
+      if (meta) {
+        if (meta.username) return meta.username;
+        const fullName = [meta.first_name, meta.last_name].filter(Boolean).join(" ").trim();
+        if (fullName) return fullName;
+      }
+      if (fallbackId) return `user ${fallbackId}`;
+      return t("unknown");
+    }
+
     async function loadData() {
       const q = buildBoardsQueryParam();
       const res = await fetch("/api/moods" + q);
@@ -307,6 +320,11 @@
           }
         }
 
+        const authorName = getAuthorName(
+          e.meta || null,
+          e.meta && e.meta.chatId ? String(e.meta.chatId) : null
+        );
+
         div.innerHTML = `
           <div style="display: flex; gap: 12px; margin-bottom: 8px; align-items:flex-start;">
             <div style="
@@ -326,7 +344,10 @@
               ${title ? `<div class="entry-title">${title}</div>` : ""}
               ${body ? `<div class="entry-body">${body}</div>` : ""}
               ${mediaHtml}
-              <div class="entry-date">${formatFullDateTime(e.timestamp)}</div>
+              <div class="entry-meta">
+                <div class="entry-author">${authorName}</div>
+                <div class="entry-date">${formatFullDateTime(e.timestamp)}</div>
+              </div>
             </div>
           </div>
         `;
@@ -494,11 +515,7 @@
         }
 
         const m = group.meta;
-        const label =
-          (m && m.username) ||
-          (m &&
-            [m.first_name, m.last_name].filter(Boolean).join(" ")) ||
-          `user ${authorId}`;
+        const label = getAuthorName(m || null, authorId);
 
         datasets.push({
           label,
@@ -703,6 +720,7 @@
       const pinBtn = document.getElementById("pin-btn");
       const pinIcon = pinBtn ? pinBtn.querySelector("img") : null;
       const toggleBtn = document.getElementById("boards-toggle");
+      const closeBtn = document.getElementById("panel-close-btn");
       const hoverZone = document.querySelector(".left-hover-zone");
 
       const mqDesktop = window.matchMedia("(min-width: 769px)");
@@ -736,6 +754,18 @@
       if (toggleBtn) {
         toggleBtn.addEventListener("click", () => {
           panel.classList.toggle("open");
+        });
+      }
+
+      if (closeBtn) {
+        closeBtn.addEventListener("click", () => {
+          const wasPinned = document.body.classList.contains("panel-pinned");
+          document.body.classList.remove("panel-pinned");
+          panel.classList.remove("open");
+          if (wasPinned) {
+            localStorage.setItem("panelPinned", "false");
+            updatePinIcon();
+          }
         });
       }
 
