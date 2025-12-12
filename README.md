@@ -31,6 +31,7 @@ docker run -d --name moodgraph \
   -p 3000:3000 \
   -e TG_TOKEN=<your-tgbot-token> \
   -e LOCALE=en \
+  -v moodgraph_data:/data \
   rdindaclub/moodgraph:latest
 ```
 
