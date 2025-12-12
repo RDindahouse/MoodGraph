@@ -4,9 +4,9 @@
   "description": "MoodGraph: mood tracking with Telegram bot and web UI",
   "main": "server.js",
   "scripts": {
-    "start-server": "node src/server.js",
-    "start-bot": "node src/bot.js",
-    "start-all": "concurrently \"node src/server.js\" \"node src/bot.js\""
+    "start-server": "node src/server/server.js",
+    "start-bot": "node src/server/bot.js",
+    "start-all": "concurrently \"node src/server/server.js\" \"node src/server/bot.js\""
   },
 
   "dependencies": {

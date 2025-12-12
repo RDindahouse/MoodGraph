@@ -180,7 +180,7 @@ body[data-theme="dark"] .pin-btn img {
   flex-direction: column;
   gap: 6px;
   font-size: 13px;
-  align-items: flex-start;
+  align-items: stretch;
 }
 
 /* When panel is pinned, push the content so centered blocks remain truly centered */
@@ -310,6 +310,28 @@ body.panel-pinned .content {
 
 .board-chip input {
   margin: 0;
+}
+
+.boards-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+
+.boards-table th,
+.boards-table td {
+  padding: 6px 8px;
+  border-bottom: 1px solid var(--border-subtle);
+  text-align: left;
+}
+
+.boards-table th {
+  font-weight: 600;
+  color: var(--text);
+}
+
+.boards-table tr:last-child td {
+  border-bottom: none;
 }
 
 select {

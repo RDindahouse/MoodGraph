@@ -24,6 +24,10 @@ const translations = {
     mood: "Mood",
     time: "Time",
     createdBy: "Created by",
+    delete: "Delete",
+    boardAuthor: "Author",
+    boardTitle: "Board",
+    boardShow: "Show",
     theme: "Theme",
     language: "Language",
     botStart: "Welcome to Mood Graph!\n\n" +
@@ -185,6 +189,10 @@ const translations = {
     mood: "Настроение",
     time: "Время",
     createdBy: "Создано",
+    delete: "Удалить",
+    boardAuthor: "Автор",
+    boardTitle: "График",
+    boardShow: "Показать",
     theme: "Тема",
     language: "Язык",
     botStart: "Добро пожаловать в Mood Graph!\n\n" +
